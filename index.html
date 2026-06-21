@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>音声リーダー</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --text: #1f2937; --text-sub: #6b7280;
+      --border: #e5e7eb; --bg: #f3f4f6; --card: #ffffff;
+      --radius: 14px; --shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    .header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-title { font-size: 17px; font-weight: 700; flex: 1; }
+    .hbtn {
+      border: none; background: none; font-size: 22px; cursor: pointer;
+      padding: 6px; border-radius: 8px; color: var(--primary); line-height: 1;
+    }
+    .hbtn:active { background: var(--primary-light); }
+    .hbtn.danger { color: #dc2626; }
+
+    /* ── Content ── */
+    .content { flex: 1; padding: 16px; padding-bottom: 88px; overflow-y: auto; }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none; border-radius: 10px; padding: 13px 20px; font-size: 15px;
+      font-weight: 600; cursor: pointer; display: inline-flex; align-items: center;
+      justify-content: center; gap: 6px; font-family: inherit;
+      -webkit-user-select: none; transition: opacity .1s, transform .1s;
+    }
+    .btn:active { opacity: .78; transform: scale(.97); }
+    .btn-primary { background: var(--primary); color: white; width: 100%; }
+    .btn-ghost { background: white; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+
+    /* ── Input ── */
+    .input {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; font-family: inherit; outline: none;
+      background: white; transition: border-color .2s; color: var(--text);
+    }
+    .input:focus { border-color: var(--primary); }
+    textarea.input { resize: none; }
+    .field { margin-bottom: 16px; }
+    .label { font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; display: block; }
+
+    /* ── Library ── */
+    .text-item {
+      background: var(--card); border-radius: var(--radius); padding: 16px;
+      box-shadow: var(--shadow); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .text-item-info { flex: 1; min-width: 0; cursor: pointer; }
+    .text-item-title { font-size: 16px; font-weight: 700; }
+    .text-item-preview {
+      font-size: 13px; color: var(--text-sub); margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .text-item-meta { font-size: 12px; color: var(--text-sub); margin-top: 3px; }
+    .play-circle {
+      width: 48px; height: 48px; border-radius: 50%; background: var(--primary);
+      color: white; border: none; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .play-circle:active { opacity: .78; transform: scale(.94); }
+    .empty { text-align: center; padding: 64px 20px; color: var(--text-sub); }
+    .empty-icon { font-size: 52px; margin-bottom: 12px; }
+    .empty-msg { font-size: 15px; }
+
+    /* ── FAB ── */
+    .fab {
+      position: fixed; bottom: 24px;
+      right: max(16px, calc(50% - 224px));
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--primary); color: white; border: none;
+      font-size: 30px; box-shadow: 0 4px 14px rgba(37,99,235,.4);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .fab:active { transform: scale(.92); }
+
+    /* ── Edit ── */
+    .section-ttl { font-size: 13px; font-weight: 700; color: var(--text-sub); margin-bottom: 10px; letter-spacing: .05em; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .word-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .word-row .input { margin: 0; }
+    .wdel {
+      border: none; background: #fee2e2; color: #dc2626;
+      border-radius: 8px; width: 38px; height: 38px; font-size: 15px;
+      cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .wdel:active { opacity: .7; }
+
+    /* ── Player ── */
+    .sentences-wrap {
+      background: var(--card); border-radius: var(--radius);
+      padding: 14px; box-shadow: var(--shadow); margin-bottom: 14px;
+      max-height: 42vh; overflow-y: auto;
+    }
+    .sent {
+      padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
+      font-size: 16px; line-height: 1.75; border-left: 3px solid transparent;
+      transition: background .2s, border-color .2s;
+    }
+    .sent.active { background: var(--primary-light); border-left-color: var(--primary); }
+    .sent.done { color: var(--text-sub); }
+
+    /* ── Word annotation ── */
+    .wa {
+      color: var(--primary); font-weight: 600;
+      text-decoration: underline; text-decoration-style: dotted;
+      cursor: pointer;
+    }
+    .wa:active { background: var(--primary-light); border-radius: 3px; }
+
+    /* ── Popup ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+    }
+    .popup {
+      background: white; border-radius: 22px 22px 0 0;
+      padding: 28px 20px 44px; width: 100%; max-width: 480px;
+    }
+    .popup-term { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+    .popup-ja { font-size: 18px; color: var(--text); margin-bottom: 20px; line-height: 1.5; }
+    .popup-speak {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: var(--primary-light); color: var(--primary);
+      font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; margin-bottom: 8px;
+    }
+    .popup-close {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: var(--bg); font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit; color: var(--text);
+    }
+
+    /* ── Controls ── */
+    .controls {
+      background: var(--card); border-radius: var(--radius);
+      padding: 18px 16px 20px; box-shadow: var(--shadow);
+    }
+    .prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .prog-info { font-size: 13px; color: var(--text-sub); white-space: nowrap; }
+    .prog-slider {
+      flex: 1; -webkit-appearance: none; appearance: none;
+      height: 4px; border-radius: 99px; background: var(--border);
+      outline: none; cursor: pointer;
+    }
+    .prog-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--primary); cursor: pointer;
+      box-shadow: 0 1px 4px rgba(37,99,235,.4);
+    }
+    .prog-slider::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--primary); cursor: pointer; border: none;
+    }
+    .ctrl-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 16px; }
+    .cbtn {
+      border: none; background: var(--bg); border-radius: 50%;
+      width: 54px; height: 54px; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text); -webkit-user-select: none;
+    }
+    .cbtn:active { opacity: .7; transform: scale(.94); }
+    .cbtn.main { background: var(--primary); color: white; width: 66px; height: 66px; font-size: 28px; }
+    .speed-row { display: flex; justify-content: center; gap: 8px; }
+    .schip {
+      border: 1.5px solid var(--border); background: white; border-radius: 99px;
+      padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+      font-family: inherit; color: var(--text-sub);
+    }
+    .schip.on { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const KEY = 'voice_reader_v2';
+
+// ── Claude がここにテキストを追加する ──────────────────────────────
+const PRESET_TEXTS = [
+  {
+    id: 'preset_01', num: '01', title: '空港・機内・入国審査',
+    body: "Hello. Where are you flying today? Hello. I'm flying to Ho Chi Minh City. May I see your passport, please? Sure. Here you are. Do you have any checked bags? Yes, I have one suitcase. What is the purpose of your trip? I'm going to Vietnam for work. How long will you stay? For about one month. What kind of work will you do? I will work on building design for a construction project. Do you have a return ticket? Yes, I do. Do you have your hotel information? Yes. I have the hotel address and booking confirmation. Great. Here is your boarding pass. Your gate is A12. Thank you. What time does boarding start? Boarding starts at 9:40. Thank you very much. Welcome aboard. Thank you. Excuse me, is this seat 14A? Yes, it is. Thank you. Can I put my bag in the overhead bin? Yes, of course. Would you like something to drink? Yes, can I have some water, please? Sure. Here you are. Thank you. Chicken or fish? Chicken, please. Would you like tea or coffee? Coffee, please, with milk. Certainly. Can I also have an extra napkin, please? Yes. Here you are. Thank you very much. Excuse me, could I have an arrival card, please? Yes, of course. Thank you. Could you help me with this form? Sure. Which part do you need help with? This part about my hotel address. You can write the hotel name and address here. I see. Thank you for your help. Good evening. May I see your passport? Yes. Here you are. What is the purpose of your visit? I'm here for business. What kind of business? I will work on building design for a construction project. How long will you stay in Vietnam? For about one month. Where will you stay? At a hotel in District 1, Ho Chi Minh City. Do you have the hotel address? Yes. It is in this document. Do you have a return ticket? Yes, I do. Are you bringing any samples, tools, or work equipment? I have a laptop, drawings, and work documents. Will you visit a construction site? Yes, I will visit the site and do design work with the local team. Okay. Everything is fine. Welcome to Vietnam. Thank you very much.",
+    words: [
+      { term: 'checked bags', ja: '預け荷物' },
+      { term: 'What is the purpose of your trip', ja: '旅行の目的は何ですか？' },
+      { term: 'return ticket', ja: '帰りのチケット' },
+      { term: 'boarding pass', ja: '搭乗券' },
+      { term: 'overhead bin', ja: '頭上の収納棚' },
+      { term: 'arrival card', ja: '入国カード' },
+      { term: "I'm here for business", ja: '出張で来ました' },
+    ]
+  },
+  {
+    id: 'preset_02', num: '02', title: 'ホテル・移動',
+    body: "Good evening. I am here to check in. I booked a room. My name is Sato. Welcome. May I see your passport, please? Sure. Here it is. Thank you. You booked a single room for two nights, right? Yes, that is right. Breakfast is from seven to ten in the morning on the first floor. Great. Is the internet free? Yes, it is. The password is on this card. Thank you. What time is check out? Check out is at eleven in the morning. Okay. Can I leave my bag here tomorrow after check out? Yes, of course. Thank you very much. You are welcome. Here is your room key. Your room is on the fifth floor. Excuse me. Could you call a taxi for me, please? Sure. Where do you want to go? I need to go to Central Station. No problem. The taxi will be here in five minutes. Thank you. Your taxi is here now. Hello. Please take me to Central Station. Okay. Which entrance do you want? The south entrance, please. All right. It will take about twenty minutes. How much will it be? About two thousand five hundred yen, but traffic is a little heavy now. That is fine. Please use the fastest route. Sure. Please put on your seat belt.",
+    words: [
+      { term: 'check in', ja: 'チェックイン' },
+      { term: 'check out', ja: 'チェックアウト' },
+      { term: 'Please take me to', ja: '〜まで連れて行ってください' },
+      { term: 'traffic is a little heavy', ja: '少し渋滞しています' },
+      { term: 'put on your seat belt', ja: 'シートベルトを締めてください' },
+      { term: 'fastest route', ja: '最速ルート' },
+    ]
+  },
+  {
+    id: 'preset_03', num: '03', title: 'カフェ・レストラン',
+    body: "Good afternoon. Do you have a table for two? Yes, of course. Inside or outside? Inside, please. It is a little cold today. No problem. Please follow me. Here is your table. Thank you. Can we see the menu? Yes. Here are the food menu and the drink menu. Thank you. This is our first time here. Welcome. I hope you enjoy it. What do you recommend? Our tomato pasta is very popular. The chicken sandwich is also good. Which one do you like better? I like the tomato pasta. It has fresh tomatoes and cheese. That sounds nice. Is it spicy? No, it is not spicy. It is mild and easy to eat. Great. I will have the tomato pasta, please. And I will have the chicken sandwich. Would you like anything to drink? Yes, one iced coffee and one orange juice, please. Sure. Would you like water, too? Yes, please. That would be great. Excuse me. How long will the food take? About fifteen minutes. That is fine. Thank you. Here is your food. Enjoy your meal. Thank you. It looks delicious. This pasta is really good. My sandwich is nice, too. Excuse me. Can we have the bill, please? Certainly. Would you like to pay together or separately? Together, please. Can I pay by card? Yes, you can. Great. Thank you for your help. You are welcome. Have a nice day.",
+    words: [
+      { term: 'What do you recommend', ja: '何がおすすめですか？' },
+      { term: 'Would you like anything to drink', ja: 'お飲み物はいかがですか？' },
+      { term: 'Enjoy your meal', ja: 'ごゆっくりどうぞ' },
+      { term: 'Can we have the bill', ja: 'お会計をお願いします' },
+      { term: 'pay separately', ja: '別々に支払う' },
+      { term: 'mild and easy to eat', ja: '辛くなくて食べやすい' },
+    ]
+  },
+  {
+    id: 'preset_04a', num: '04a', title: '道聞く・雑談（駅まで）',
+    body: "Excuse me, am I near the train station? No, the station is not near here. Oh, I think I am lost. That is okay. Where do you want to go? I want to go to Green Park. Green Park is about ten minutes from here. Can I walk there? Yes, you can. Go straight on this street. Then what should I do? Turn left at the bakery. Is the bakery on the corner? Yes, it is. You will see a small red sign. Thank you. Is the park busy today? A little. It is sunny, so many families are there. That sounds nice. Are you visiting this city? Yes, I arrived yesterday. Do you like it so far? Yes, very much. The food is good, and people are kind. I am glad to hear that. Do you know a good cafe near the park? Yes. There is a small cafe next to the lake. What do they sell? They sell coffee, tea, sandwiches, and cake. Great. I will go there after a walk. Good idea. The chocolate cake is very popular. Thank you for your help. You are welcome. Enjoy your day. I will. Have a nice day too.",
+    words: [
+      { term: 'I think I am lost', ja: '道に迷ったようです' },
+      { term: 'Go straight on this street', ja: 'この道をまっすぐ進んでください' },
+      { term: 'Turn left at the bakery', ja: 'パン屋で左に曲がってください' },
+      { term: 'on the corner', ja: '角にある' },
+      { term: 'Are you visiting this city', ja: 'この街を観光していますか？' },
+    ]
+  },
+  {
+    id: 'preset_04b', num: '04b', title: '道聞く・雑談（美術館）',
+    body: "Excuse me, does this bus go to the museum? No, this bus goes to the airport. Oh, I see. Which bus should I take? Take bus number 12. Where is the bus stop? It is across the street, next to the bank. Thank you. How often does the bus come? About every fifteen minutes. That is helpful. Is the museum far? Not very far. It takes about twenty minutes by bus. Are you from this city? Yes, I live near here. It is a nice city. Thank you. Many people like the old buildings. I saw some beautiful streets this morning. Then you should visit the old market too. Is it near the museum? Yes, it is five minutes on foot. Great. What can I buy there? You can buy fruit, snacks, and small gifts. That sounds fun. Yes, and the people there are friendly. Thank you for the advice. No problem. Have a good trip.",
+    words: [
+      { term: 'How often does the bus come', ja: 'バスはどのくらいの頻度で来ますか？' },
+      { term: 'on foot', ja: '徒歩で' },
+      { term: 'across the street', ja: '通りの向こう側に' },
+      { term: 'old market', ja: '昔からの市場' },
+    ]
+  },
+  {
+    id: 'preset_04c', num: '04c', title: '道聞く・雑談（ホテル）',
+    body: "Excuse me, I cannot find my hotel. What is the name of your hotel? It is City View Hotel. Oh, I know it. It is near the river. Can you show me on the map? Sure. We are here now. Thank you. How do I get there? Walk straight for two blocks. Then turn right at the traffic lights. Is it a big hotel? Yes, it is tall and white. That helps. I was worried. Do not worry. It is easy to find. Thank you. This is my first time here. Welcome. Where are you from? I am from Japan. Really? I want to visit Japan one day. You should. It is a very interesting country. I like Japanese food. What food do you like? I like ramen and sushi. They are very popular. Yes. Well, enjoy your stay here. Thank you very much.",
+    words: [
+      { term: 'I cannot find my hotel', ja: 'ホテルが見つかりません' },
+      { term: 'Walk straight for two blocks', ja: '2ブロックまっすぐ進んでください' },
+      { term: 'Turn right at the traffic lights', ja: '信号で右に曲がってください' },
+      { term: 'This is my first time here', ja: 'ここは初めてです' },
+      { term: 'near the river', ja: '川の近くに' },
+    ]
+  },
+  {
+    id: 'preset_04d', num: '04d', title: '道聞く・雑談（店）',
+    body: "Excuse me, is this the way to the shopping street? Yes, it is. You are going the right way. Great. How long does it take? About seven minutes on foot. Thank you. Is it open now? Yes, most shops are open until eight. Good. I want to buy a present. What kind of present? Maybe something local. Then try the small gift shop near the clock tower. What do they sell? They sell postcards, cups, and local sweets. That sounds perfect. Are you here on holiday? Yes, just for three days. Only three days? That is short. Yes, but I want to see many places. Then do not miss the night view. Where can I see it? From the bridge near the river. Is it safe at night? Yes, but stay on the main street. Okay, thank you for the tip. You are welcome. Enjoy shopping.",
+    words: [
+      { term: 'something local', ja: '地元のもの' },
+      { term: 'gift shop', ja: 'ギフトショップ・お土産屋' },
+      { term: 'night view', ja: '夜景' },
+      { term: 'stay on the main street', ja: '大通りを通ってください' },
+      { term: 'clock tower', ja: '時計台' },
+      { term: 'the right way', ja: '正しい道' },
+    ]
+  },
+];
+// ─────────────────────────────────────────────────────────────────────
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || { texts: [] }; }
+  catch { return { texts: [] }; }
+}
+function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function initPresets() {
+  if (!PRESET_TEXTS.length) return;
+  const d = load();
+  const ids = new Set(d.texts.map(t => t.id));
+  let changed = false;
+  PRESET_TEXTS.forEach(t => {
+    if (!ids.has(t.id)) {
+      d.texts.unshift(t); changed = true;
+    } else {
+      const ex = d.texts.find(x => x.id === t.id);
+      if (ex && !ex.num && t.num) { ex.num = t.num; changed = true; }
+    }
+  });
+  if (changed) save(d);
+}
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function splitSents(text) {
+  return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+}
+
+// ═══════════════════════════════════════════════
+// SPEECH
+// ═══════════════════════════════════════════════
+const synth = window.speechSynthesis;
+let spState = { playing: false, idx: 0, sents: [], speed: 1.0, onTick: null, onDone: null };
+
+function spPlay() {
+  synth.cancel();
+  for (let i = spState.idx; i < spState.sents.length; i++) {
+    const u = new SpeechSynthesisUtterance(spState.sents[i]);
+    u.lang = 'en-US'; u.rate = spState.speed;
+    const ci = i;
+    u.onstart = () => { spState.idx = ci; spState.onTick?.(ci); };
+    if (i === spState.sents.length - 1)
+      u.onend = () => { spState.playing = false; spState.onDone?.(); };
+    synth.speak(u);
+  }
+  // iOS workaround
+  setTimeout(() => { if (synth.paused) synth.resume(); }, 100);
+}
+function spToggle() {
+  if (spState.playing) { spState.playing = false; synth.cancel(); }
+  else { spState.playing = true; spPlay(); }
+  return spState.playing;
+}
+function spPrev() {
+  const was = spState.playing; spState.playing = false; synth.cancel();
+  spState.idx = Math.max(0, spState.idx - 1);
+  spState.onTick?.(spState.idx);
+  if (was) { spState.playing = true; spPlay(); }
+}
+function spNext() {
+  const was = spState.playing; spState.playing = false; synth.cancel();
+  spState.idx = Math.min(spState.sents.length - 1, spState.idx + 1);
+  spState.onTick?.(spState.idx);
+  if (was) { spState.playing = true; spPlay(); }
+}
+function spWord(w) {
+  if (synth.speaking) synth.cancel();
+  const u = new SpeechSynthesisUtterance(w);
+  u.lang = 'en-US'; u.rate = 0.85;
+  synth.speak(u);
+}
+function spStop() {
+  spState.playing = false; synth.cancel();
+  spState = { playing: false, idx: 0, sents: [], speed: spState.speed, onTick: null, onDone: null };
+}
+
+// ═══════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════
+let screen = 'library';   // library | edit | player
+let editItem = null;
+let playerItem = null;
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  document.getElementById('app').innerHTML =
+    screen === 'library' ? rLibrary() :
+    screen === 'edit'    ? rEdit()    : rPlayer();
+  bind();
+}
+
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+// ── Library ──────────────────────────────────
+function rLibrary() {
+  const { texts } = load();
+  const list = texts.length ? texts.map(t => {
+    const numBadge = t.num ? `<span style="color:var(--primary);font-size:12px;font-weight:700;margin-right:4px">${esc(t.num)}</span>` : '';
+    return `
+    <div class="text-item">
+      <div class="text-item-info" data-open="${t.id}">
+        <div class="text-item-title">${numBadge}${esc(t.title)}</div>
+        <div class="text-item-preview">${esc(t.body.slice(0,55))}…</div>
+        <div class="text-item-meta">${splitSents(t.body).length}文 · ${wordCount(t.body)}単語 · 登録語句${t.words.length}件</div>
+      </div>
+      <button class="play-circle" data-play="${t.id}">▶</button>
+    </div>`;
+  }).join('') : `
+    <div class="empty">
+      <div class="empty-icon">🎧</div>
+      <div class="empty-msg">＋ボタンから英文を追加しよう</div>
+    </div>`;
+  return `
+    <div class="header"><div class="header-title">🎧 音声リーダー</div></div>
+    <div class="content">${list}</div>
+    <button class="fab" id="fab">＋</button>`;
+}
+
+// ── Edit ─────────────────────────────────────
+function rEdit() {
+  const it = editItem;
+  const wRows = (it.words || []).map((w, i) => `
+    <div class="word-row">
+      <input class="input" style="flex:1.2" placeholder="英語（例: look forward to）" value="${esc(w.term)}" data-wt="${i}">
+      <input class="input" style="flex:1" placeholder="日本語訳" value="${esc(w.ja)}" data-wj="${i}">
+      <button class="wdel" data-wdel="${i}">✕</button>
+    </div>`).join('');
+  return `
+    <div class="header">
+      <button class="hbtn" id="back">←</button>
+      <div class="header-title">${it.id ? '編集' : '新しい文章'}</div>
+      ${it.id ? '<button class="hbtn danger" id="del-item">🗑</button>' : ''}
+    </div>
+    <div class="content">
+      <div class="field">
+        <label class="label">タイトル</label>
+        <input class="input" id="et" placeholder="例：自己紹介" value="${esc(it.title)}">
+      </div>
+      <div class="field">
+        <label class="label">英文（ピリオド・！・？で文ごとに区切られます）</label>
+        <textarea class="input" id="eb" rows="9" placeholder="例：Thank you for welcoming me. I am happy to visit Vietnam.">${esc(it.body)}</textarea>
+      </div>
+      <hr class="divider">
+      <div class="section-ttl">語句・イディオム（タップで発音＋日本語訳）</div>
+      <div id="wlist">${wRows}</div>
+      <button class="btn btn-ghost btn-sm" id="add-word" style="margin-top:8px">＋ 語句を追加</button>
+      <div style="height:20px"></div>
+      <button class="btn btn-primary" id="save">保存する</button>
+    </div>`;
+}
+
+// ── Player ───────────────────────────────────
+function rPlayer() {
+  const it = playerItem;
+  const sents = splitSents(it.body);
+  const total = sents.length;
+  const sentHtml = sents.map((s, i) =>
+    `<div class="sent${i===0?' active':''}" id="s${i}">${annotate(s, it.words)}</div>`
+  ).join('');
+  const speeds = [0.75, 0.9, 1.0, 1.1, 1.25, 1.5];
+  const numBadge = it.num ? `${esc(it.num)} · ` : '';
+  return `
+    <div class="header">
+      <button class="hbtn" id="back">←</button>
+      <div class="header-title" style="font-size:15px">${numBadge}${esc(it.title)}</div>
+      <button class="hbtn" id="edit-here">✏️</button>
+    </div>
+    <div class="content">
+      <div class="sentences-wrap" id="sw">${sentHtml}</div>
+      <div class="controls">
+        <div class="prog-row">
+          <span class="prog-info" id="pi">1 / ${total}</span>
+          <input type="range" class="prog-slider" id="pslider"
+            min="0" max="${total - 1}" value="0" step="1">
+        </div>
+        <div class="ctrl-row">
+          <button class="cbtn" id="prev">⏮</button>
+          <button class="cbtn main" id="play">▶</button>
+          <button class="cbtn" id="next">⏭</button>
+        </div>
+        <div class="speed-row">
+          ${speeds.map(s=>`<button class="schip${spState.speed===s?' on':''}" data-sp="${s}">${s}x</button>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Annotate words in sentence ────────────────
+function annotate(sentence, words) {
+  if (!words?.length) return esc(sentence);
+  const sorted = [...words].filter(w=>w.term.trim()).sort((a,b)=>b.term.length-a.term.length);
+  const marks = [];
+  sorted.forEach(w => {
+    const re = new RegExp(w.term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    let m;
+    while ((m = re.exec(sentence)) !== null) {
+      if (!marks.some(e => m.index < e.end && m.index + m[0].length > e.start)) {
+        marks.push({ start: m.index, end: m.index + m[0].length, term: w.term, ja: w.ja, matched: m[0] });
+      }
+    }
+  });
+  marks.sort((a,b) => a.start - b.start);
+  let out = '', pos = 0;
+  marks.forEach(m => {
+    out += esc(sentence.slice(pos, m.start));
+    out += `<span class="wa" data-term="${esc(m.term)}" data-ja="${esc(m.ja)}">${esc(m.matched)}</span>`;
+    pos = m.end;
+  });
+  return out + esc(sentence.slice(pos));
+}
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+function bind() {
+  // ── Library ──
+  if ($('fab')) $('fab').onclick = () => { editItem = {title:'',body:'',words:[]}; screen='edit'; render(); };
+
+  document.querySelectorAll('[data-open]').forEach(el =>
+    el.onclick = () => {
+      const t = load().texts.find(x=>x.id===el.dataset.open);
+      editItem = JSON.parse(JSON.stringify(t));
+      screen = 'edit'; render();
+    }
+  );
+  document.querySelectorAll('[data-play]').forEach(btn =>
+    btn.onclick = () => {
+      const t = load().texts.find(x=>x.id===btn.dataset.play);
+      spStop();
+      playerItem = t;
+      spState.sents = splitSents(t.body);
+      spState.idx = 0;
+      screen = 'player'; render();
+      setupTick();
+    }
+  );
+
+  // ── Edit ──
+  if (screen==='edit') {
+    if ($('back')) $('back').onclick = () => { screen='library'; render(); };
+
+    if ($('del-item')) $('del-item').onclick = () => {
+      if (!confirm('この文章を削除しますか？')) return;
+      const d = load(); d.texts = d.texts.filter(t=>t.id!==editItem.id); save(d);
+      screen='library'; render();
+    };
+
+    if ($('add-word')) $('add-word').onclick = () => {
+      collectEdit(); editItem.words.push({term:'',ja:''}); render();
+      setTimeout(()=>{ const wl=$('wlist'); wl?.lastElementChild?.scrollIntoView({behavior:'smooth'}); },50);
+    };
+
+    document.querySelectorAll('[data-wdel]').forEach(b =>
+      b.onclick = () => { collectEdit(); editItem.words.splice(+b.dataset.wdel,1); render(); }
+    );
+
+    if ($('save')) $('save').onclick = () => {
+      collectEdit();
+      if (!editItem.title.trim()) { alert('タイトルを入力してください'); return; }
+      if (!editItem.body.trim())  { alert('英文を入力してください'); return; }
+      editItem.words = editItem.words.filter(w=>w.term.trim());
+      const d = load();
+      if (!editItem.id) { editItem.id = uid(); d.texts.push(editItem); }
+      else { const i=d.texts.findIndex(t=>t.id===editItem.id); if(i>=0) d.texts[i]=editItem; }
+      save(d); screen='library'; render();
+    };
+  }
+
+  // ── Player ──
+  if (screen==='player') {
+    if ($('back')) $('back').onclick = () => { spStop(); screen='library'; render(); };
+
+    if ($('edit-here')) $('edit-here').onclick = () => {
+      spStop();
+      const t = load().texts.find(x=>x.id===playerItem.id);
+      editItem = JSON.parse(JSON.stringify(t));
+      screen='edit'; render();
+    };
+
+    if ($('play')) $('play').onclick = () => {
+      const on = spToggle();
+      $('play').textContent = on ? '⏸' : '▶';
+    };
+    if ($('prev')) $('prev').onclick = () => { spPrev(); $('play').textContent = spState.playing ? '⏸' : '▶'; };
+    if ($('next')) $('next').onclick = () => { spNext(); $('play').textContent = spState.playing ? '⏸' : '▶'; };
+
+    if ($('pslider')) $('pslider').oninput = () => {
+      const idx = parseInt($('pslider').value);
+      const was = spState.playing;
+      spState.playing = false; synth.cancel();
+      spState.idx = idx;
+      spState.onTick?.(idx);
+      if (was) { spState.playing = true; spPlay(); }
+      $('play').textContent = spState.playing ? '⏸' : '▶';
+    };
+
+    document.querySelectorAll('[data-sp]').forEach(b =>
+      b.onclick = () => {
+        spState.speed = parseFloat(b.dataset.sp);
+        document.querySelectorAll('[data-sp]').forEach(x =>
+          x.classList.toggle('on', parseFloat(x.dataset.sp) === spState.speed)
+        );
+        if (spState.playing) { synth.cancel(); spPlay(); }
+      }
+    );
+
+    document.querySelectorAll('.wa').forEach(el =>
+      el.onclick = e => {
+        e.stopPropagation();
+        showPopup(el.dataset.term, el.dataset.ja);
+      }
+    );
+  }
+}
+
+function collectEdit() {
+  const t=$('et'), b=$('eb'); if(t) editItem.title=t.value; if(b) editItem.body=b.value;
+  editItem.words=[];
+  document.querySelectorAll('[data-wt]').forEach((el,i)=>{
+    const jel=document.querySelector(`[data-wj="${i}"]`);
+    editItem.words.push({term:el.value, ja:jel?.value||''});
+  });
+}
+
+function setupTick() {
+  spState.onTick = (idx) => {
+    const total = spState.sents.length;
+    document.querySelectorAll('.sent').forEach((el,i)=>{
+      el.classList.toggle('active', i===idx);
+      el.classList.toggle('done', i<idx);
+    });
+    document.getElementById(`s${idx}`)?.scrollIntoView({behavior:'smooth',block:'center'});
+    const pi = $('pi'), ps = $('pslider');
+    if (pi) pi.textContent = `${idx+1} / ${total}`;
+    if (ps) ps.value = idx;
+  };
+  spState.onDone = () => {
+    const pb = $('play'); if (pb) pb.textContent = '▶';
+    spState.playing = false;
+  };
+}
+
+function showPopup(term, ja) {
+  spWord(term);
+  const ov = document.createElement('div');
+  ov.className='overlay';
+  ov.innerHTML=`
+    <div class="popup">
+      <div class="popup-term">${esc(term)}</div>
+      <div class="popup-ja">${esc(ja)}</div>
+      <button class="popup-speak" id="ps">🔊 もう一度発音</button>
+      <button class="popup-close" id="pc">閉じる</button>
+    </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('ps').onclick = () => spWord(term);
+  const close = () => ov.remove();
+  document.getElementById('pc').onclick = close;
+  ov.onclick = e => { if(e.target===ov) close(); };
+}
+
+// ── Init ──
+initPresets();
+render();
+</script>
+</body>
+</html>
