@@ -400,7 +400,10 @@ function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function splitSents(text) {
-  return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  // 略語の "." を一時保護してから分割
+  const protected_ = text.replace(/\b(Mr|Mrs|Ms|Dr|St|Mt|Prof|Jr|Sr|vs|No|Fig)\./g, '$1․');
+  const sents = protected_.split(/(?<=[.!?])\s+/).map(s => s.replace(/․/g, '.').trim()).filter(Boolean);
+  return sents.length ? sents : [text.trim()];
 }
 
 // ═══════════════════════════════════════════════
@@ -415,9 +418,15 @@ function spPlay() {
     const u = new SpeechSynthesisUtterance(spState.sents[i]);
     u.lang = 'en-US'; u.rate = spState.speed;
     const ci = i;
+    // onstart が発火しない場合の保険として onend でも更新
     u.onstart = () => { spState.idx = ci; spState.onTick?.(ci); };
-    if (i === spState.sents.length - 1)
-      u.onend = () => { spState.playing = false; spState.onDone?.(); };
+    u.onend = () => {
+      if (ci < spState.sents.length - 1) {
+        spState.idx = ci + 1; spState.onTick?.(ci + 1);
+      } else {
+        spState.playing = false; spState.onDone?.();
+      }
+    };
     synth.speak(u);
   }
   // iOS workaround
@@ -555,6 +564,7 @@ function rPlayer() {
             min="0" max="${total - 1}" value="0" step="1">
         </div>
         <div class="ctrl-row">
+          <button class="cbtn" id="first" title="先頭へ">↩</button>
           <button class="cbtn" id="prev">⏮</button>
           <button class="cbtn main" id="play">▶</button>
           <button class="cbtn" id="next">⏭</button>
@@ -661,6 +671,12 @@ function bind() {
     if ($('play')) $('play').onclick = () => {
       const on = spToggle();
       $('play').textContent = on ? '⏸' : '▶';
+    };
+    if ($('first')) $('first').onclick = () => {
+      const was = spState.playing; synth.cancel(); spState.playing = false;
+      spState.idx = 0; spState.onTick?.(0);
+      if (was) { spState.playing = true; spPlay(); }
+      $('play').textContent = spState.playing ? '⏸' : '▶';
     };
     if ($('prev')) $('prev').onclick = () => { spPrev(); $('play').textContent = spState.playing ? '⏸' : '▶'; };
     if ($('next')) $('next').onclick = () => { spNext(); $('play').textContent = spState.playing ? '⏸' : '▶'; };
