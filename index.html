@@ -115,7 +115,9 @@
       padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
       font-size: 16px; line-height: 1.75; border-left: 3px solid transparent;
       transition: background .2s, border-color .2s;
+      cursor: pointer;
     }
+    .sent:hover { background: rgba(0,0,0,0.04); }
     .sent.active { background: var(--primary-light); border-left-color: var(--primary); }
     .sent.done { color: var(--text-sub); }
 
@@ -707,6 +709,17 @@ function bind() {
         showPopup(el.dataset.term, el.dataset.ja);
       }
     );
+
+    // 文タップで再生位置を移動（語句タップは stopPropagation で除外済み）
+    document.querySelectorAll('.sent').forEach((el, i) =>
+      el.onclick = () => {
+        const was = spState.playing;
+        synth.cancel(); spState.playing = false;
+        spState.idx = i; spState.onTick?.(i);
+        if (was) { spState.playing = true; spPlay(); }
+        $('play').textContent = spState.playing ? '⏸' : '▶';
+      }
+    );
   }
 }
 
@@ -758,6 +771,14 @@ function showPopup(term, ja) {
 // ── Init ──
 initPresets();
 render();
+
+// バックグラウンドから復帰したとき、音声と表示を再同期する
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && spState.playing) {
+    synth.cancel();
+    setTimeout(() => spPlay(), 150);
+  }
+});
 </script>
 </body>
 </html>
