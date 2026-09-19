@@ -120,6 +120,10 @@
     .sent:hover { background: rgba(0,0,0,0.04); }
     .sent.active { background: var(--primary-light); border-left-color: var(--primary); }
     .sent.done { color: var(--text-sub); }
+    .sent-ja { font-size: 12.5px; color: var(--text-sub); line-height: 1.5; margin-top: 1px; }
+    .hide-ja .sent-ja { display: none; }
+    .hbtn.txt { font-size: 13px; font-weight: 700; border: 1.5px solid var(--border); padding: 4px 10px; border-radius: 99px; }
+    .hbtn.txt.off { color: var(--text-sub); }
 
     /* ── Word annotation ── */
     .wa {
@@ -189,6 +193,12 @@
       font-family: inherit; color: var(--text-sub);
     }
     .schip.on { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .schip:disabled { opacity: .35; cursor: default; }
+    .speed-row { flex-wrap: wrap; gap: 6px; }
+    .speed-row .schip { padding: 6px 10px; }
+    .acc-ttl { font-size: 11px; font-weight: 700; color: var(--text-sub); text-align: center; margin: 14px 0 6px; }
+    .acc-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .acc-row .schip { padding: 5px 10px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -373,6 +383,446 @@ const PRESET_TEXTS = [
       { term: 'old-fashioned', ja: '時代遅れ' },
     ]
   },
+  {
+    id: 'preset_q1', num: 'Q1', title: "よく聞かれる質問｜空港チェックイン", ver: 1,
+    body: "Good morning. Can I see your passport, please? Sure. Here you are. Where are you flying to today? To Shanghai. How many bags are you checking in? Just one. Please put it on the scale. Did you pack this bag yourself? Yes, I did. Are there any batteries, power banks, or lighters in it? No, my power bank is in my carry-on. Would you like a window seat or an aisle seat? An aisle seat, please. Your bag is two kilos over the limit. Can I move some things to my carry-on? Sure, go ahead. Here is your boarding pass. Boarding starts at ten twenty at Gate fifteen. Thank you.",
+    words: [
+      { term: "checking in", ja: "（荷物を）預ける" },
+      { term: "scale", ja: "はかり" },
+      { term: "pack", ja: "荷物を詰める" },
+      { term: "power bank", ja: "モバイルバッテリー" },
+      { term: "carry-on", ja: "機内持ち込みの手荷物" },
+      { term: "aisle seat", ja: "通路側の席" },
+      { term: "over the limit", ja: "制限を超えている" },
+      { term: "boarding pass", ja: "搭乗券" }
+    ],
+    trans: {
+      "Good morning.": "係員：おはようございます。",
+      "Can I see your passport, please?": "係員：パスポートを拝見できますか？",
+      "Sure.": "自分：はい。",
+      "Here you are.": "自分：どうぞ。",
+      "Where are you flying to today?": "係員：本日はどちらまで？",
+      "To Shanghai.": "自分：上海までです。",
+      "How many bags are you checking in?": "係員：預ける荷物はいくつですか？",
+      "Just one.": "自分：1つだけです。",
+      "Please put it on the scale.": "係員：はかりに載せてください。",
+      "Did you pack this bag yourself?": "係員：この荷物はご自身で詰めましたか？",
+      "Yes, I did.": "自分：はい、自分で詰めました。",
+      "Are there any batteries, power banks, or lighters in it?": "係員：中に電池、モバイルバッテリー、ライターは入っていますか？",
+      "No, my power bank is in my carry-on.": "自分：いいえ、モバイルバッテリーは機内持ち込みの方に入れています。",
+      "Would you like a window seat or an aisle seat?": "係員：窓側と通路側、どちらがよろしいですか？",
+      "An aisle seat, please.": "自分：通路側でお願いします。",
+      "Your bag is two kilos over the limit.": "係員：お荷物が制限を2キロ超えています。",
+      "Can I move some things to my carry-on?": "自分：手荷物の方に移してもいいですか？",
+      "Sure, go ahead.": "係員：どうぞ。",
+      "Here is your boarding pass.": "係員：こちらが搭乗券です。",
+      "Boarding starts at ten twenty at Gate fifteen.": "係員：搭乗は10時20分から、15番ゲートです。",
+      "Thank you.": "自分：ありがとうございます。"
+    }
+  },
+  {
+    id: 'preset_q2', num: 'Q2', title: "よく聞かれる質問｜保安検査", ver: 1,
+    body: "Please put your bags in the tray. Take out your laptop and any liquids. Okay. Do you have any liquids in your bag? Just this bottle of water. You can't take that through. Please drink it or throw it away. Please take off your jacket and belt. Empty your pockets, please. My phone and wallet, too? Yes, everything. Step through, please. Raise your arms. Turn around, please. Is this your bag? Yes, it is. We need to check it. Please open it. Okay, you're good to go.",
+    words: [
+      { term: "tray", ja: "トレー" },
+      { term: "liquids", ja: "液体物" },
+      { term: "take that through", ja: "（検査場の先へ）持ち込む" },
+      { term: "throw it away", ja: "捨てる" },
+      { term: "take off", ja: "脱ぐ・外す" },
+      { term: "Empty your pockets", ja: "ポケットを空にして" },
+      { term: "Step through", ja: "（ゲートを）通って" },
+      { term: "Raise your arms", ja: "両腕を上げて" },
+      { term: "you're good to go", ja: "行っていいですよ" }
+    ],
+    trans: {
+      "Please put your bags in the tray.": "係員：荷物をトレーに入れてください。",
+      "Take out your laptop and any liquids.": "係員：ノートパソコンと液体物は出してください。",
+      "Okay.": "自分：はい。",
+      "Do you have any liquids in your bag?": "係員：かばんに液体物は入っていますか？",
+      "Just this bottle of water.": "自分：この水のボトルだけです。",
+      "You can't take that through.": "係員：それは持ち込めません。",
+      "Please drink it or throw it away.": "係員：飲むか捨ててください。",
+      "Please take off your jacket and belt.": "係員：上着とベルトを外してください。",
+      "Empty your pockets, please.": "係員：ポケットの中の物を出してください。",
+      "My phone and wallet, too?": "自分：スマホと財布もですか？",
+      "Yes, everything.": "係員：はい、全部です。",
+      "Step through, please.": "係員：（ゲートを）通ってください。",
+      "Raise your arms.": "係員：両腕を上げてください。",
+      "Turn around, please.": "係員：後ろを向いてください。",
+      "Is this your bag?": "係員：これはあなたのかばんですか？",
+      "Yes, it is.": "自分：はい、そうです。",
+      "We need to check it.": "係員：確認が必要です。",
+      "Please open it.": "係員：開けてください。",
+      "Okay, you're good to go.": "係員：はい、行って大丈夫です。"
+    }
+  },
+  {
+    id: 'preset_q3', num: 'Q3', title: "よく聞かれる質問｜荷物検査で別室に呼ばれたとき", ver: 1,
+    body: "Excuse me, sir. Is this your suitcase? Yes, it's mine. Please come with me. We need to inspect your bag. Okay. Is there a problem? Something in your bag showed up on the X-ray. Sorry, could you say that more slowly? There is something in your bag. We need to check it. I see. Please open your suitcase. Sure. Here you go. Did you pack this bag yourself? Yes, I did. Are you carrying anything for someone else? No, everything is mine. Do you have a power bank or spare batteries in here? Yes, there's a power bank in this pocket. Power banks are not allowed in checked baggage. Please take it out and carry it with you. I see. Sorry about that. What is this item? It's a measuring tape. I use it for work. Do you have any lighters, knives, or sprays? No, I don't. Okay, you can close your bag. Please sign here to confirm. Can I go now? Yes, you're all set. Have a nice flight.",
+    words: [
+      { term: "inspect", ja: "検査する" },
+      { term: "showed up on the X-ray", ja: "X線で引っかかった" },
+      { term: "pack this bag yourself", ja: "自分で荷造りした" },
+      { term: "for someone else", ja: "誰かのために（頼まれて）" },
+      { term: "power bank", ja: "モバイルバッテリー" },
+      { term: "spare batteries", ja: "予備の電池" },
+      { term: "checked baggage", ja: "預け荷物" },
+      { term: "carry it with you", ja: "手で持っていく" },
+      { term: "measuring tape", ja: "メジャー・巻尺" },
+      { term: "sign here", ja: "ここにサインして" },
+      { term: "you're all set", ja: "これで完了です" }
+    ],
+    trans: {
+      "Excuse me, sir.": "係員：すみません。",
+      "Is this your suitcase?": "係員：これはあなたのスーツケースですか？",
+      "Yes, it's mine.": "自分：はい、私のです。",
+      "Please come with me.": "係員：一緒に来てください。",
+      "We need to inspect your bag.": "係員：荷物を検査する必要があります。",
+      "Okay.": "自分：わかりました。",
+      "Is there a problem?": "自分：何か問題がありますか？",
+      "Something in your bag showed up on the X-ray.": "係員：X線検査で、かばんの中の物が引っかかりました。",
+      "Sorry, could you say that more slowly?": "自分：すみません、もう少しゆっくり言っていただけますか？",
+      "There is something in your bag.": "係員：かばんの中に何かあります。",
+      "We need to check it.": "係員：確認が必要です。",
+      "I see.": "自分：わかりました。",
+      "Please open your suitcase.": "係員：スーツケースを開けてください。",
+      "Sure.": "自分：はい。",
+      "Here you go.": "自分：どうぞ。",
+      "Did you pack this bag yourself?": "係員：この荷物はご自身で詰めましたか？",
+      "Yes, I did.": "自分：はい、自分で詰めました。",
+      "Are you carrying anything for someone else?": "係員：誰かに頼まれて運んでいる物はありますか？",
+      "No, everything is mine.": "自分：いいえ、全部私の物です。",
+      "Do you have a power bank or spare batteries in here?": "係員：この中にモバイルバッテリーか予備の電池はありますか？",
+      "Yes, there's a power bank in this pocket.": "自分：はい、このポケットにモバイルバッテリーがあります。",
+      "Power banks are not allowed in checked baggage.": "係員：モバイルバッテリーは預け荷物に入れられません。",
+      "Please take it out and carry it with you.": "係員：取り出して、手荷物で持っていってください。",
+      "Sorry about that.": "自分：すみません。",
+      "What is this item?": "係員：これは何ですか？",
+      "It's a measuring tape.": "自分：メジャー（巻尺）です。",
+      "I use it for work.": "自分：仕事で使います。",
+      "Do you have any lighters, knives, or sprays?": "係員：ライター、刃物、スプレーはありますか？",
+      "No, I don't.": "自分：いいえ、ありません。",
+      "Okay, you can close your bag.": "係員：はい、かばんを閉めていいですよ。",
+      "Please sign here to confirm.": "係員：確認のため、ここにサインしてください。",
+      "Can I go now?": "自分：もう行ってもいいですか？",
+      "Yes, you're all set.": "係員：はい、大丈夫です。",
+      "Have a nice flight.": "係員：よいフライトを。"
+    }
+  },
+  {
+    id: 'preset_q4', num: 'Q4', title: "よく聞かれる質問｜入国審査", ver: 1,
+    body: "Passport, please. Here you are. What's the purpose of your visit? Business. How long will you be staying? For five days. Where are you staying? At a hotel near the office. Here's the address. What do you do? I'm an architect. Is this your first time here? Yes, it is. Do you have a return ticket? Yes. Here it is. Please look at the camera. Put your left four fingers on the scanner. Now your right hand. Now both thumbs. Okay, you're done. Welcome. Thank you.",
+    words: [
+      { term: "purpose of your visit", ja: "渡航の目的" },
+      { term: "How long will you be staying", ja: "どのくらい滞在しますか" },
+      { term: "What do you do", ja: "お仕事は？（何をしている人か）" },
+      { term: "return ticket", ja: "帰りの航空券" },
+      { term: "look at the camera", ja: "カメラを見て" },
+      { term: "scanner", ja: "（指紋の）読み取り機" },
+      { term: "thumbs", ja: "親指" }
+    ],
+    trans: {
+      "Passport, please.": "係員：パスポートをお願いします。",
+      "Here you are.": "自分：どうぞ。",
+      "What's the purpose of your visit?": "係員：渡航の目的は何ですか？",
+      "Business.": "自分：仕事です。",
+      "How long will you be staying?": "係員：どのくらい滞在しますか？",
+      "For five days.": "自分：5日間です。",
+      "Where are you staying?": "係員：どこに滞在しますか？",
+      "At a hotel near the office.": "自分：会社の近くのホテルです。",
+      "Here's the address.": "自分：これが住所です。",
+      "What do you do?": "係員：お仕事は何ですか？",
+      "I'm an architect.": "自分：建築士です。",
+      "Is this your first time here?": "係員：こちらは初めてですか？",
+      "Yes, it is.": "自分：はい、初めてです。",
+      "Do you have a return ticket?": "係員：帰りの航空券はありますか？",
+      "Yes.": "自分：はい。",
+      "Here it is.": "自分：こちらです。",
+      "Please look at the camera.": "係員：カメラを見てください。",
+      "Put your left four fingers on the scanner.": "係員：左手の指4本をスキャナーに置いてください。",
+      "Now your right hand.": "係員：次は右手です。",
+      "Now both thumbs.": "係員：最後に両手の親指です。",
+      "Okay, you're done.": "係員：はい、終わりです。",
+      "Welcome.": "係員：ようこそ。",
+      "Thank you.": "自分：ありがとう。"
+    }
+  },
+  {
+    id: 'preset_q5', num: 'Q5', title: "よく聞かれる質問｜税関", ver: 1,
+    body: "Do you have anything to declare? No, nothing to declare. Are you carrying a large amount of cash? No, just a little. Any food, meat, or fruit? Just some snacks from Japan. Please put your bags on the belt. What's in this box? Gifts for my coworkers. They're Japanese sweets. Okay. Go ahead.",
+    words: [
+      { term: "declare", ja: "申告する" },
+      { term: "a large amount of cash", ja: "多額の現金" },
+      { term: "belt", ja: "（X線検査の）ベルト" },
+      { term: "coworkers", ja: "同僚" },
+      { term: "Go ahead", ja: "どうぞ（進んで）" }
+    ],
+    trans: {
+      "Do you have anything to declare?": "係員：申告するものはありますか？",
+      "No, nothing to declare.": "自分：いいえ、ありません。",
+      "Are you carrying a large amount of cash?": "係員：多額の現金を持っていますか？",
+      "No, just a little.": "自分：いいえ、少しだけです。",
+      "Any food, meat, or fruit?": "係員：食べ物、肉、果物は？",
+      "Just some snacks from Japan.": "自分：日本のお菓子が少しだけです。",
+      "Please put your bags on the belt.": "係員：荷物をベルトに載せてください。",
+      "What's in this box?": "係員：この箱の中身は何ですか？",
+      "Gifts for my coworkers.": "自分：同僚へのお土産です。",
+      "They're Japanese sweets.": "自分：日本のお菓子です。",
+      "Okay.": "係員：わかりました。",
+      "Go ahead.": "係員：どうぞ。"
+    }
+  },
+  {
+    id: 'preset_q6', num: 'Q6', title: "よく聞かれる質問｜お店・ホテル", ver: 1,
+    body: "Cash or card? Card, please. Would you like a bag? No, thanks. Do you need a receipt? Yes, please. For here or to go? For here. Can I have your room number? Room twelve-oh-five. We need a credit card for the deposit. Okay. Here's my card. Did you have anything from the minibar? No, nothing. Would you like me to call a taxi for you? Yes, please. Thank you.",
+    words: [
+      { term: "Cash or card", ja: "現金かカードか" },
+      { term: "receipt", ja: "レシート・領収書" },
+      { term: "For here or to go", ja: "店内か持ち帰りか" },
+      { term: "deposit", ja: "デポジット（保証金）" },
+      { term: "minibar", ja: "部屋の冷蔵庫の有料ドリンク等" }
+    ],
+    trans: {
+      "Cash or card?": "店員：現金ですか、カードですか？",
+      "Card, please.": "自分：カードで。",
+      "Would you like a bag?": "店員：袋はご入用ですか？",
+      "No, thanks.": "自分：いいえ、結構です。",
+      "Do you need a receipt?": "店員：レシートはご入用ですか？",
+      "Yes, please.": "自分：はい、お願いします。",
+      "For here or to go?": "店員：店内ですか、お持ち帰りですか？",
+      "For here.": "自分：店内で。",
+      "Can I have your room number?": "フロント：お部屋番号を教えていただけますか？",
+      "Room twelve-oh-five.": "自分：1205号室です。",
+      "We need a credit card for the deposit.": "フロント：デポジット（保証金）のためにクレジットカードが必要です。",
+      "Okay.": "自分：わかりました。",
+      "Here's my card.": "自分：カードです。",
+      "Did you have anything from the minibar?": "フロント：ミニバーの物は何か使いましたか？",
+      "No, nothing.": "自分：いいえ、何も。",
+      "Would you like me to call a taxi for you?": "フロント：タクシーをお呼びしましょうか？",
+      "Thank you.": "自分：ありがとう。"
+    }
+  },
+  {
+    id: 'preset_f0', num: 'F0', title: "フランス語｜まずはこれだけ（頻出19）", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonsoir ! Merci ! Merci beaucoup ! S'il vous plaît. Excusez-moi. Pardon ! Oui, s'il vous plaît. Non, merci. D'accord. Au revoir ! Bonne journée ! Merci, vous aussi ! Je ne parle pas français. Vous parlez anglais ? Je ne comprends pas. Pouvez-vous répéter, s'il vous plaît ? Plus lentement, s'il vous plaît. Où sont les toilettes ?",
+    words: [
+      { term: "s'il vous plaît", ja: "お願いします（依頼の万能語）" },
+      { term: "Excusez-moi", ja: "すみません（呼びかけ）" },
+      { term: "Pardon", ja: "すみません（ぶつかった時）" },
+      { term: "D'accord", ja: "わかりました" },
+      { term: "Bonne journée", ja: "よい一日を" },
+      { term: "vous aussi", ja: "あなたも" }
+    ],
+    trans: {
+      "Bonjour !": "こんにちは！",
+      "Bonsoir !": "こんばんは！",
+      "Merci !": "ありがとう！",
+      "Merci beaucoup !": "ありがとうございます！",
+      "S'il vous plaît.": "お願いします。",
+      "Excusez-moi.": "すみません（呼び止めるとき）。",
+      "Pardon !": "すみません（ぶつかった・通してほしいとき）！",
+      "Oui, s'il vous plaît.": "はい、お願いします。",
+      "Non, merci.": "いえ、結構です。",
+      "D'accord.": "わかりました。",
+      "Au revoir !": "さようなら！",
+      "Bonne journée !": "よい一日を！",
+      "Merci, vous aussi !": "ありがとう、あなたも！",
+      "Je ne parle pas français.": "フランス語は話せません。",
+      "Vous parlez anglais ?": "英語は話せますか？",
+      "Je ne comprends pas.": "わかりません。",
+      "Pouvez-vous répéter, s'il vous plaît ?": "もう一度言っていただけますか？",
+      "Plus lentement, s'il vous plaît.": "もう少しゆっくりお願いします。",
+      "Où sont les toilettes ?": "トイレはどこですか？"
+    }
+  },
+  {
+    id: 'preset_f1', num: 'F1', title: "フランス語｜カフェ・パン屋", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonjour, monsieur. Qu'est-ce que je vous sers ? Un café crème et un croissant, s'il vous plaît. Sur place ou à emporter ? Sur place, s'il vous plaît. Très bien. Autre chose ? Non, c'est tout, merci. Ça fait combien ? Ça fait six euros cinquante. Je peux payer par carte ? Oui, bien sûr. Merci beaucoup. Bonne journée ! Merci, vous aussi. Au revoir !",
+    words: [
+      { term: "Qu'est-ce que je vous sers", ja: "何になさいますか？" },
+      { term: "Sur place ou à emporter", ja: "店内か、持ち帰りか" },
+      { term: "Autre chose", ja: "ほかには？" },
+      { term: "c'est tout", ja: "以上です" },
+      { term: "Ça fait combien", ja: "全部でいくら？" },
+      { term: "bien sûr", ja: "もちろん" }
+    ],
+    trans: {
+      "Bonjour !": "自分：こんにちは！",
+      "Bonjour, monsieur.": "店員：こんにちは（男性客に）。",
+      "Qu'est-ce que je vous sers ?": "店員：何になさいますか？",
+      "Un café crème et un croissant, s'il vous plaît.": "自分：カフェ・クレームとクロワッサンをお願いします。",
+      "Sur place ou à emporter ?": "店員：店内ですか、お持ち帰りですか？",
+      "Sur place, s'il vous plaît.": "自分：店内でお願いします。",
+      "Très bien.": "店員：かしこまりました。",
+      "Autre chose ?": "店員：ほかには？",
+      "Non, c'est tout, merci.": "自分：いえ、以上です。",
+      "Ça fait combien ?": "自分：全部でいくらですか？",
+      "Ça fait six euros cinquante.": "店員：6ユーロ50です。",
+      "Je peux payer par carte ?": "自分：カードで払えますか？",
+      "Oui, bien sûr.": "店員：はい、もちろん。",
+      "Merci beaucoup.": "自分：ありがとうございます。",
+      "Bonne journée !": "店員：よい一日を！",
+      "Merci, vous aussi.": "自分：ありがとう、あなたも。",
+      "Au revoir !": "自分：さようなら！"
+    }
+  },
+  {
+    id: 'preset_f2', num: 'F2', title: "フランス語｜レストラン", lang: 'fr-FR', ver: 1,
+    body: "Bonsoir ! Bonsoir. Vous avez une réservation ? Oui, au nom de Matsumoto. Pour deux personnes. Parfait. Suivez-moi, s'il vous plaît. Voici la carte. Merci. Qu'est-ce que vous nous conseillez ? Le plat du jour est très bon. C'est du poisson. Alors, deux plats du jour, s'il vous plaît. Et comme boisson ? Une carafe d'eau et un verre de vin rouge, s'il vous plaît. Tout se passe bien ? Oui, c'était délicieux ! L'addition, s'il vous plaît. Tout de suite. Merci, bonne soirée ! Merci, à vous aussi.",
+    words: [
+      { term: "Suivez-moi", ja: "ついて来てください" },
+      { term: "la carte", ja: "メニュー表（le menu はコースの意味）" },
+      { term: "le plat du jour", ja: "本日の料理" },
+      { term: "comme boisson", ja: "飲み物は" },
+      { term: "Tout se passe bien", ja: "問題ないですか？" },
+      { term: "L'addition", ja: "お会計" },
+      { term: "Tout de suite", ja: "すぐに" }
+    ],
+    trans: {
+      "Bonsoir !": "自分：こんばんは！",
+      "Bonsoir.": "店員：こんばんは。",
+      "Vous avez une réservation ?": "店員：ご予約はありますか？",
+      "Oui, au nom de Matsumoto.": "自分：はい、松本の名前で。",
+      "Pour deux personnes.": "自分：2名です。",
+      "Parfait.": "店員：承知しました。",
+      "Suivez-moi, s'il vous plaît.": "店員：こちらへどうぞ。",
+      "Voici la carte.": "店員：メニューです。",
+      "Merci.": "自分：ありがとう。",
+      "Qu'est-ce que vous nous conseillez ?": "自分：おすすめは何ですか？",
+      "Le plat du jour est très bon.": "店員：本日の料理がとてもおいしいですよ。",
+      "C'est du poisson.": "店員：魚料理です。",
+      "Alors, deux plats du jour, s'il vous plaît.": "自分：じゃあ、本日の料理を2つお願いします。",
+      "Et comme boisson ?": "店員：お飲み物は？",
+      "Une carafe d'eau et un verre de vin rouge, s'il vous plaît.": "自分：水のピッチャーと、赤ワインをグラスで1杯お願いします。",
+      "Tout se passe bien ?": "店員：（食事中に）いかがですか？",
+      "Oui, c'était délicieux !": "自分：はい、とてもおいしかったです！",
+      "L'addition, s'il vous plaît.": "自分：お会計をお願いします。",
+      "Tout de suite.": "店員：すぐにお持ちします。",
+      "Merci, bonne soirée !": "自分：ありがとう、よい夜を！",
+      "Merci, à vous aussi.": "店員：ありがとうございます、あなたも。"
+    }
+  },
+  {
+    id: 'preset_f3', num: 'F3', title: "フランス語｜お店・買い物", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonjour. Je peux vous aider ? Je regarde seulement, merci. D'accord. Excusez-moi, vous avez une autre taille ? Oui, voilà. Je peux l'essayer ? Bien sûr. La cabine est là-bas. C'est parfait. Je le prends. C'est pour offrir ? Non, c'est pour moi. Ça fait quarante-cinq euros. Voilà. Merci, au revoir ! Au revoir, bonne journée !",
+    words: [
+      { term: "Je peux vous aider", ja: "何かお探しですか？" },
+      { term: "Je regarde seulement", ja: "見ているだけです" },
+      { term: "une autre taille", ja: "別のサイズ" },
+      { term: "la cabine", ja: "試着室" },
+      { term: "Je le prends", ja: "これにします" },
+      { term: "C'est pour offrir", ja: "プレゼント用ですか？" }
+    ],
+    trans: {
+      "Bonjour !": "自分：こんにちは！",
+      "Bonjour.": "店員：こんにちは。",
+      "Je peux vous aider ?": "店員：何かお探しですか？",
+      "Je regarde seulement, merci.": "自分：見ているだけです、ありがとう。",
+      "D'accord.": "店員：わかりました。",
+      "Excusez-moi, vous avez une autre taille ?": "自分：すみません、別のサイズはありますか？",
+      "Oui, voilà.": "店員：はい、こちらです。",
+      "Je peux l'essayer ?": "自分：試着してもいいですか？",
+      "Bien sûr.": "店員：もちろん。",
+      "La cabine est là-bas.": "店員：試着室はあちらです。",
+      "C'est parfait.": "自分：ぴったりです。",
+      "Je le prends.": "自分：これにします。",
+      "C'est pour offrir ?": "店員：プレゼント用ですか？",
+      "Non, c'est pour moi.": "自分：いいえ、自分用です。",
+      "Ça fait quarante-cinq euros.": "店員：45ユーロです。",
+      "Voilà.": "自分：はい、どうぞ。",
+      "Merci, au revoir !": "店員：ありがとうございました！",
+      "Au revoir, bonne journée !": "自分：さようなら、よい一日を！"
+    }
+  },
+  {
+    id: 'preset_f4', num: 'F4', title: "フランス語｜メトロ・道を聞く", lang: 'fr-FR', ver: 1,
+    body: "Excusez-moi, madame. Oui ? Où est le métro, s'il vous plaît ? C'est tout droit, puis à gauche. C'est loin ? Non, c'est à cinq minutes à pied. Merci ! Pardon, ce métro va à Châtelet ? Oui, c'est la bonne direction. Et pour aller au Louvre ? Descendez à la station Palais-Royal – Musée du Louvre. Merci beaucoup ! Je vous en prie.",
+    words: [
+      { term: "tout droit", ja: "まっすぐ" },
+      { term: "à gauche", ja: "左に（右は à droite）" },
+      { term: "à cinq minutes à pied", ja: "歩いて5分" },
+      { term: "la bonne direction", ja: "正しい方向" },
+      { term: "Descendez", ja: "降りてください" },
+      { term: "Je vous en prie", ja: "どういたしまして" }
+    ],
+    trans: {
+      "Excusez-moi, madame.": "自分：すみません（女性に）。",
+      "Oui ?": "通行人：はい？",
+      "Où est le métro, s'il vous plaît ?": "自分：地下鉄の駅はどこですか？",
+      "C'est tout droit, puis à gauche.": "通行人：まっすぐ行って、それから左です。",
+      "C'est loin ?": "自分：遠いですか？",
+      "Non, c'est à cinq minutes à pied.": "通行人：いいえ、歩いて5分です。",
+      "Merci !": "自分：ありがとう！",
+      "Pardon, ce métro va à Châtelet ?": "自分：すみません、この地下鉄はシャトレに行きますか？",
+      "Oui, c'est la bonne direction.": "通行人：はい、この方向で合っていますよ。",
+      "Et pour aller au Louvre ?": "自分：ルーヴル美術館へは？",
+      "Descendez à la station Palais-Royal – Musée du Louvre.": "通行人：「パレ・ロワイヤル＝ルーヴル美術館」駅で降りてください。",
+      "Merci beaucoup !": "自分：ありがとうございます！",
+      "Je vous en prie.": "通行人：どういたしまして。"
+    }
+  },
+  {
+    id: 'preset_f5', num: 'F5', title: "フランス語｜ホテル", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonjour, madame, monsieur. J'ai une réservation au nom de Matsumoto. Un instant, s'il vous plaît. Oui, c'est bien ça. Voici votre clé. Votre chambre est au troisième étage. Merci. À quelle heure est le petit-déjeuner ? De sept heures à dix heures. Et le code wifi, s'il vous plaît ? Il est sur la carte. Parfait, merci ! Le jour du départ, je peux laisser mes bagages ici ? Oui, bien sûr. Bon séjour !",
+    words: [
+      { term: "Un instant", ja: "少々お待ちください" },
+      { term: "au troisième étage", ja: "4階（フランスは地上階を0階と数える）" },
+      { term: "le petit-déjeuner", ja: "朝食" },
+      { term: "le jour du départ", ja: "出発の日" },
+      { term: "Bon séjour", ja: "よいご滞在を" }
+    ],
+    trans: {
+      "Bonjour !": "自分：こんにちは！",
+      "Bonjour, madame, monsieur.": "フロント：こんにちは（おふたりに）。",
+      "J'ai une réservation au nom de Matsumoto.": "自分：松本の名前で予約しています。",
+      "Un instant, s'il vous plaît.": "フロント：少々お待ちください。",
+      "Oui, c'est bien ça.": "フロント：はい、確かに。",
+      "Voici votre clé.": "フロント：こちらが鍵です。",
+      "Votre chambre est au troisième étage.": "フロント：お部屋は4階です（フランス式では3階）。",
+      "Merci.": "自分：ありがとう。",
+      "À quelle heure est le petit-déjeuner ?": "自分：朝食は何時ですか？",
+      "De sept heures à dix heures.": "フロント：7時から10時までです。",
+      "Et le code wifi, s'il vous plaît ?": "自分：それと、Wi-Fiのパスワードを教えてください。",
+      "Il est sur la carte.": "フロント：カードに書いてあります。",
+      "Parfait, merci !": "自分：完璧です、ありがとう！",
+      "Le jour du départ, je peux laisser mes bagages ici ?": "自分：出発の日に、ここに荷物を置いていけますか？",
+      "Oui, bien sûr.": "フロント：はい、もちろん。",
+      "Bon séjour !": "フロント：よいご滞在を！"
+    }
+  },
+  {
+    id: 'preset_f6', num: 'F6', title: "フランス語｜美術館・観光", lang: 'fr-FR', ver: 1,
+    body: "Bonjour, deux billets, s'il vous plaît. Vous avez une réservation ? Non. Alors, ça fait trente-quatre euros. Je peux payer par carte ? Oui. Voilà vos billets. On peut prendre des photos ? Oui, mais sans flash. À quelle heure ça ferme ? À dix-huit heures. Merci ! Excusez-moi, vous pouvez nous prendre en photo, s'il vous plaît ? Avec plaisir ! Un, deux, trois... Merci beaucoup ! C'est magnifique ici ! Nous sommes en voyage de noces. Oh, félicitations !",
+    words: [
+      { term: "billets", ja: "チケット" },
+      { term: "sans flash", ja: "フラッシュなしで" },
+      { term: "ça ferme", ja: "閉まる" },
+      { term: "Avec plaisir", ja: "喜んで" },
+      { term: "voyage de noces", ja: "新婚旅行" },
+      { term: "félicitations", ja: "おめでとう" }
+    ],
+    trans: {
+      "Bonjour, deux billets, s'il vous plaît.": "自分：こんにちは、チケットを2枚ください。",
+      "Vous avez une réservation ?": "係員：ご予約はありますか？",
+      "Non.": "自分：いいえ。",
+      "Alors, ça fait trente-quatre euros.": "係員：では、34ユーロです。",
+      "Je peux payer par carte ?": "自分：カードで払えますか？",
+      "Oui.": "係員：はい。",
+      "Voilà vos billets.": "係員：チケットです。",
+      "On peut prendre des photos ?": "自分：写真を撮ってもいいですか？",
+      "Oui, mais sans flash.": "係員：はい、フラッシュなしなら。",
+      "À quelle heure ça ferme ?": "自分：何時に閉まりますか？",
+      "À dix-huit heures.": "係員：18時です。",
+      "Merci !": "自分：ありがとう！",
+      "Excusez-moi, vous pouvez nous prendre en photo, s'il vous plaît ?": "自分：すみません、私たちの写真を撮っていただけますか？",
+      "Avec plaisir !": "通行人：喜んで！",
+      "Un, deux, trois...": "通行人：1、2、3…",
+      "Merci beaucoup !": "自分：ありがとうございます！",
+      "C'est magnifique ici !": "自分：ここは本当にきれいですね！",
+      "Nous sommes en voyage de noces.": "自分：新婚旅行で来ているんです。",
+      "Oh, félicitations !": "通行人：まあ、おめでとうございます！"
+    }
+  },
 ];
 // ─────────────────────────────────────────────────────────────────────
 
@@ -388,14 +838,18 @@ function initPresets() {
   const d = load();
   const ids = new Set(d.texts.map(t => t.id));
   let changed = false;
+  const added = [];
   PRESET_TEXTS.forEach(t => {
     if (!ids.has(t.id)) {
-      d.texts.unshift(t); changed = true;
+      added.push(t); changed = true;
     } else {
       const ex = d.texts.find(x => x.id === t.id);
       if (ex && !ex.num && t.num) { ex.num = t.num; changed = true; }
+      // ver を上げたプリセットは中身を差し替える（内容を直したときに端末へ反映させるため）
+      if (ex && t.ver && (ex.ver || 0) < t.ver) { Object.assign(ex, JSON.parse(JSON.stringify(t))); changed = true; }
     }
   });
+  if (added.length) d.texts.unshift(...added);   // 追加分は定義順のまま先頭に
   if (changed) save(d);
 }
 function esc(s) {
@@ -403,7 +857,7 @@ function esc(s) {
 }
 function splitSents(text) {
   // 略語の "." を一時保護してから分割
-  const protected_ = text.replace(/\b(Mr|Mrs|Ms|Dr|St|Mt|Prof|Jr|Sr|vs|No|Fig)\./g, '$1․');
+  const protected_ = text.replace(/\b(Mr|Mrs|Ms|Dr|St|Mt|Prof|Jr|Sr|vs|No|Fig|M|Mme|Mlle)\./g, '$1․');
   const sents = protected_.split(/(?<=[.!?])\s+/).map(s => s.replace(/․/g, '.').trim()).filter(Boolean);
   return sents.length ? sents : [text.trim()];
 }
@@ -412,13 +866,53 @@ function splitSents(text) {
 // SPEECH
 // ═══════════════════════════════════════════════
 const synth = window.speechSynthesis;
-let spState = { playing: false, idx: 0, sents: [], speed: 1.0, onTick: null, onDone: null };
+let spState = { playing: false, idx: 0, sents: [], speed: 1.0, lang: 'en-US', trans: null, onTick: null, onDone: null };
+let showTrans = true;   // フランス語など訳付きの文章で、訳を表示するか
+
+// ── なまり切替（英語の文章だけ） ──
+// 米・英・豪・インドは本物の英語音声。中国・ベトナム・フランスは、その国の言葉の音声に英語を読ませた「疑似なまり」
+// 訳に「自分：」と付いた文（自分のセリフ）は、なまりを付けずに標準の米国英語で読む
+const ACCENTS = [
+  { id:'us', label:'🇺🇸 米', lang:'en-US' },
+  { id:'gb', label:'🇬🇧 英', lang:'en-GB' },
+  { id:'au', label:'🇦🇺 豪', lang:'en-AU' },
+  { id:'in', label:'🇮🇳 インド', lang:'en-IN' },
+  { id:'zh', label:'🇨🇳 中国なまり風', lang:'zh-CN' },
+  { id:'vi', label:'🇻🇳 ベトナムなまり風', lang:'vi-VN' },
+  { id:'fr', label:'🇫🇷 フランスなまり風', lang:'fr-FR' },
+];
+let accent = (() => { try { return localStorage.getItem('voice_reader_accent') || 'us'; } catch { return 'us'; } })();
+function findVoice(lang) {
+  const vs = synth ? synth.getVoices() : [];
+  const norm = v => v.lang.toLowerCase().replace('_', '-');
+  const want = lang.toLowerCase(), base = want.split('-')[0];
+  return vs.find(v => norm(v) === want)
+      // 英語の国別（英・豪・インド）は別の国の英語で代用しない。中国語・ベトナム語・フランス語は地域違いでも可
+      || (base !== 'en' || want === 'en-us' ? vs.find(v => norm(v).startsWith(base + '-')) : null)
+      || null;
+}
+function accentReady(a) { return a.id === 'us' || !!findVoice(a.lang); }
+function applyVoice(u, sent) {
+  if (spState.lang !== 'en-US') { u.lang = spState.lang; return; }
+  const isMe = spState.trans && (spState.trans[sent] || '').startsWith('自分：');
+  let a = ACCENTS.find(x => x.id === accent) || ACCENTS[0];
+  if (isMe || !accentReady(a)) a = ACCENTS[0];
+  u.lang = a.lang;
+  const v = findVoice(a.lang); if (v) u.voice = v;
+}
+function accentChips() {
+  return ACCENTS.map(a => {
+    const ok = accentReady(a);
+    return `<button class="schip${accent===a.id?' on':''}" data-acc="${a.id}"${ok?'':' disabled title="この端末にはこの音声がありません"'}>${a.label}</button>`;
+  }).join('');
+}
+if (synth && 'onvoiceschanged' in synth) synth.onvoiceschanged = () => { const r = $('acc-row'); if (r) r.innerHTML = accentChips(); };
 
 function spPlay() {
   synth.cancel();
   for (let i = spState.idx; i < spState.sents.length; i++) {
     const u = new SpeechSynthesisUtterance(spState.sents[i]);
-    u.lang = 'en-US'; u.rate = spState.speed;
+    applyVoice(u, spState.sents[i]); u.rate = spState.speed;
     const ci = i;
     // onstart が発火しない場合の保険として onend でも更新
     u.onstart = () => { spState.idx = ci; spState.onTick?.(ci); };
@@ -454,12 +948,12 @@ function spNext() {
 function spWord(w) {
   if (synth.speaking) synth.cancel();
   const u = new SpeechSynthesisUtterance(w);
-  u.lang = 'en-US'; u.rate = 0.85;
+  u.lang = spState.lang; u.rate = 0.85;
   synth.speak(u);
 }
 function spStop() {
   spState.playing = false; synth.cancel();
-  spState = { playing: false, idx: 0, sents: [], speed: spState.speed, onTick: null, onDone: null };
+  spState = { playing: false, idx: 0, sents: [], speed: spState.speed, lang: spState.lang, trans: null, onTick: null, onDone: null };
 }
 
 // ═══════════════════════════════════════════════
@@ -488,10 +982,11 @@ function rLibrary() {
   const { texts } = load();
   const list = texts.length ? texts.map(t => {
     const numBadge = t.num ? `<span style="color:var(--primary);font-size:12px;font-weight:700;margin-right:4px">${esc(t.num)}</span>` : '';
+    const langBadge = t.lang === 'fr-FR' ? '🇫🇷 ' : '';
     return `
     <div class="text-item">
       <div class="text-item-info" data-open="${t.id}">
-        <div class="text-item-title">${numBadge}${esc(t.title)}</div>
+        <div class="text-item-title">${numBadge}${langBadge}${esc(t.title)}</div>
         <div class="text-item-preview">${esc(t.body.slice(0,55))}…</div>
         <div class="text-item-meta">${splitSents(t.body).length}文 · ${wordCount(t.body)}単語 · 登録語句${t.words.length}件</div>
       </div>
@@ -546,8 +1041,10 @@ function rPlayer() {
   const it = playerItem;
   const sents = splitSents(it.body);
   const total = sents.length;
+  const tr = it.trans || null;
   const sentHtml = sents.map((s, i) =>
-    `<div class="sent${i===0?' active':''}" id="s${i}">${annotate(s, it.words)}</div>`
+    `<div class="sent${i===0?' active':''}" id="s${i}">${annotate(s, it.words)}${
+      tr && tr[s] ? `<div class="sent-ja">${esc(tr[s])}</div>` : ''}</div>`
   ).join('');
   const speeds = [0.75, 0.9, 1.0, 1.1, 1.25, 1.5];
   const numBadge = it.num ? `${esc(it.num)} · ` : '';
@@ -555,10 +1052,11 @@ function rPlayer() {
     <div class="header">
       <button class="hbtn" id="back">←</button>
       <div class="header-title" style="font-size:15px">${numBadge}${esc(it.title)}</div>
+      ${tr ? `<button class="hbtn txt${showTrans?'':' off'}" id="tr-toggle">訳</button>` : ''}
       <button class="hbtn" id="edit-here">✏️</button>
     </div>
     <div class="content">
-      <div class="sentences-wrap" id="sw">${sentHtml}</div>
+      <div class="sentences-wrap${tr && !showTrans ? ' hide-ja' : ''}" id="sw">${sentHtml}</div>
       <div class="controls">
         <div class="prog-row">
           <span class="prog-info" id="pi">1 / ${total}</span>
@@ -574,6 +1072,9 @@ function rPlayer() {
         <div class="speed-row">
           ${speeds.map(s=>`<button class="schip${spState.speed===s?' on':''}" data-sp="${s}">${s}x</button>`).join('')}
         </div>
+        ${(it.lang || 'en-US') === 'en-US' ? `
+        <div class="acc-ttl">相手のなまり${it.trans ? '（自分のセリフは標準のまま）' : ''}</div>
+        <div class="acc-row" id="acc-row">${accentChips()}</div>` : ''}
       </div>
     </div>`;
 }
@@ -623,6 +1124,8 @@ function bind() {
       playerItem = t;
       spState.sents = splitSents(t.body);
       spState.idx = 0;
+      spState.lang = t.lang || 'en-US';
+      spState.trans = t.trans || null;
       screen = 'player'; render();
       setupTick();
     }
@@ -668,6 +1171,21 @@ function bind() {
       const t = load().texts.find(x=>x.id===playerItem.id);
       editItem = JSON.parse(JSON.stringify(t));
       screen='edit'; render();
+    };
+
+    if ($('acc-row')) $('acc-row').onclick = e => {
+      const b = e.target.closest('[data-acc]');
+      if (!b || b.disabled) return;
+      accent = b.dataset.acc;
+      try { localStorage.setItem('voice_reader_accent', accent); } catch {}
+      $('acc-row').innerHTML = accentChips();
+      if (spState.playing) { synth.cancel(); spPlay(); }
+    };
+
+    if ($('tr-toggle')) $('tr-toggle').onclick = () => {
+      showTrans = !showTrans;
+      $('sw').classList.toggle('hide-ja', !showTrans);
+      $('tr-toggle').classList.toggle('off', !showTrans);
     };
 
     if ($('play')) $('play').onclick = () => {
