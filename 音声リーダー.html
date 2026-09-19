@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>音声リーダー</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --text: #1f2937; --text-sub: #6b7280;
+      --border: #e5e7eb; --bg: #f3f4f6; --card: #ffffff;
+      --radius: 14px; --shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    .header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-title { font-size: 17px; font-weight: 700; flex: 1; }
+    .hbtn {
+      border: none; background: none; font-size: 22px; cursor: pointer;
+      padding: 6px; border-radius: 8px; color: var(--primary); line-height: 1;
+    }
+    .hbtn:active { background: var(--primary-light); }
+    .hbtn.danger { color: #dc2626; }
+
+    /* ── Content ── */
+    .content { flex: 1; padding: 16px; padding-bottom: 88px; overflow-y: auto; }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none; border-radius: 10px; padding: 13px 20px; font-size: 15px;
+      font-weight: 600; cursor: pointer; display: inline-flex; align-items: center;
+      justify-content: center; gap: 6px; font-family: inherit;
+      -webkit-user-select: none; transition: opacity .1s, transform .1s;
+    }
+    .btn:active { opacity: .78; transform: scale(.97); }
+    .btn-primary { background: var(--primary); color: white; width: 100%; }
+    .btn-ghost { background: white; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+
+    /* ── Input ── */
+    .input {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; font-family: inherit; outline: none;
+      background: white; transition: border-color .2s; color: var(--text);
+    }
+    .input:focus { border-color: var(--primary); }
+    textarea.input { resize: none; }
+    .field { margin-bottom: 16px; }
+    .label { font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; display: block; }
+
+    /* ── Library ── */
+    .text-item {
+      background: var(--card); border-radius: var(--radius); padding: 16px;
+      box-shadow: var(--shadow); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .text-item-info { flex: 1; min-width: 0; cursor: pointer; }
+    .text-item-title { font-size: 16px; font-weight: 700; }
+    .text-item-preview {
+      font-size: 13px; color: var(--text-sub); margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .text-item-meta { font-size: 12px; color: var(--text-sub); margin-top: 3px; }
+    .play-circle {
+      width: 48px; height: 48px; border-radius: 50%; background: var(--primary);
+      color: white; border: none; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .play-circle:active { opacity: .78; transform: scale(.94); }
+    .empty { text-align: center; padding: 64px 20px; color: var(--text-sub); }
+    .empty-icon { font-size: 52px; margin-bottom: 12px; }
+    .empty-msg { font-size: 15px; }
+
+    /* ── FAB ── */
+    .fab {
+      position: fixed; bottom: 24px;
+      right: max(16px, calc(50% - 224px));
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--primary); color: white; border: none;
+      font-size: 30px; box-shadow: 0 4px 14px rgba(37,99,235,.4);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .fab:active { transform: scale(.92); }
+
+    /* ── Edit ── */
+    .section-ttl { font-size: 13px; font-weight: 700; color: var(--text-sub); margin-bottom: 10px; letter-spacing: .05em; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .word-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .word-row .input { margin: 0; }
+    .wdel {
+      border: none; background: #fee2e2; color: #dc2626;
+      border-radius: 8px; width: 38px; height: 38px; font-size: 15px;
+      cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .wdel:active { opacity: .7; }
+
+    /* ── Player ── */
+    .sentences-wrap {
+      background: var(--card); border-radius: var(--radius);
+      padding: 14px; box-shadow: var(--shadow); margin-bottom: 14px;
+      max-height: 42vh; overflow-y: auto;
+    }
+    .sent {
+      padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
+      font-size: 16px; line-height: 1.75; border-left: 3px solid transparent;
+      transition: background .2s, border-color .2s;
+      cursor: pointer;
+    }
+    .sent:hover { background: rgba(0,0,0,0.04); }
+    .sent.active { background: var(--primary-light); border-left-color: var(--primary); }
+    .sent.done { color: var(--text-sub); }
+    .sent-ja { font-size: 12.5px; color: var(--text-sub); line-height: 1.5; margin-top: 1px; }
+    .hide-ja .sent-ja { display: none; }
+    .hbtn.txt { font-size: 13px; font-weight: 700; border: 1.5px solid var(--border); padding: 4px 10px; border-radius: 99px; }
+    .hbtn.txt.off { color: var(--text-sub); }
+
+    /* ── Word annotation ── */
+    .wa {
+      color: var(--primary); font-weight: 600;
+      text-decoration: underline; text-decoration-style: dotted;
+      cursor: pointer;
+    }
+    .wa:active { background: var(--primary-light); border-radius: 3px; }
+
+    /* ── Popup ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+    }
+    .popup {
+      background: white; border-radius: 22px 22px 0 0;
+      padding: 28px 20px 44px; width: 100%; max-width: 480px;
+    }
+    .popup-term { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+    .popup-ja { font-size: 18px; color: var(--text); margin-bottom: 20px; line-height: 1.5; }
+    .popup-speak {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: var(--primary-light); color: var(--primary);
+      font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; margin-bottom: 8px;
+    }
+    .popup-close {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: var(--bg); font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit; color: var(--text);
+    }
+
+    /* ── Controls ── */
+    .controls {
+      background: var(--card); border-radius: var(--radius);
+      padding: 18px 16px 20px; box-shadow: var(--shadow);
+    }
+    .prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .prog-info { font-size: 13px; color: var(--text-sub); white-space: nowrap; }
+    .prog-slider {
+      flex: 1; -webkit-appearance: none; appearance: none;
+      height: 4px; border-radius: 99px; background: var(--border);
+      outline: none; cursor: pointer;
+    }
+    .prog-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--primary); cursor: pointer;
+      box-shadow: 0 1px 4px rgba(37,99,235,.4);
+    }
+    .prog-slider::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--primary); cursor: pointer; border: none;
+    }
+    .ctrl-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 16px; }
+    .cbtn {
+      border: none; background: var(--bg); border-radius: 50%;
+      width: 54px; height: 54px; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text); -webkit-user-select: none;
+    }
+    .cbtn:active { opacity: .7; transform: scale(.94); }
+    .cbtn.main { background: var(--primary); color: white; width: 66px; height: 66px; font-size: 28px; }
+    .speed-row { display: flex; justify-content: center; gap: 8px; }
+    .schip {
+      border: 1.5px solid var(--border); background: white; border-radius: 99px;
+      padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+      font-family: inherit; color: var(--text-sub);
+    }
+    .schip.on { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .schip:disabled { opacity: .35; cursor: default; }
+    .speed-row { flex-wrap: wrap; gap: 6px; }
+    .speed-row .schip { padding: 6px 10px; }
+    .acc-ttl { font-size: 11px; font-weight: 700; color: var(--text-sub); text-align: center; margin: 14px 0 6px; }
+    .acc-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .acc-row .schip { padding: 5px 10px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const KEY = 'voice_reader_v2';
+
+// ── Claude がここにテキストを追加する ──────────────────────────────
+const PRESET_TEXTS = [
+  {
+    id: 'preset_01', num: '01', title: '空港・機内・入国審査',
+    body: "Hello. Where are you flying today? Hello. I'm flying to Ho Chi Minh City. May I see your passport, please? Sure. Here you are. Do you have any checked bags? Yes, I have one suitcase. What is the purpose of your trip? I'm going to Vietnam for work. How long will you stay? For about one month. What kind of work will you do? I will work on building design for a construction project. Do you have a return ticket? Yes, I do. Do you have your hotel information? Yes. I have the hotel address and booking confirmation. Great. Here is your boarding pass. Your gate is A12. Thank you. What time does boarding start? Boarding starts at 9:40. Thank you very much. Welcome aboard. Thank you. Excuse me, is this seat 14A? Yes, it is. Thank you. Can I put my bag in the overhead bin? Yes, of course. Would you like something to drink? Yes, can I have some water, please? Sure. Here you are. Thank you. Chicken or fish? Chicken, please. Would you like tea or coffee? Coffee, please, with milk. Certainly. Can I also have an extra napkin, please? Yes. Here you are. Thank you very much. Excuse me, could I have an arrival card, please? Yes, of course. Thank you. Could you help me with this form? Sure. Which part do you need help with? This part about my hotel address. You can write the hotel name and address here. I see. Thank you for your help. Good evening. May I see your passport? Yes. Here you are. What is the purpose of your visit? I'm here for business. What kind of business? I will work on building design for a construction project. How long will you stay in Vietnam? For about one month. Where will you stay? At a hotel in District 1, Ho Chi Minh City. Do you have the hotel address? Yes. It is in this document. Do you have a return ticket? Yes, I do. Are you bringing any samples, tools, or work equipment? I have a laptop, drawings, and work documents. Will you visit a construction site? Yes, I will visit the site and do design work with the local team. Okay. Everything is fine. Welcome to Vietnam. Thank you very much.",
+    words: [
+      { term: 'checked bags', ja: '預け荷物' },
+      { term: 'What is the purpose of your trip', ja: '旅行の目的は何ですか？' },
+      { term: 'return ticket', ja: '帰りのチケット' },
+      { term: 'boarding pass', ja: '搭乗券' },
+      { term: 'overhead bin', ja: '頭上の収納棚' },
+      { term: 'arrival card', ja: '入国カード' },
+      { term: "I'm here for business", ja: '出張で来ました' },
+    ]
+  },
+  {
+    id: 'preset_02', num: '02', title: 'ホテル・移動',
+    body: "Good evening. I am here to check in. I booked a room. My name is Sato. Welcome. May I see your passport, please? Sure. Here it is. Thank you. You booked a single room for two nights, right? Yes, that is right. Breakfast is from seven to ten in the morning on the first floor. Great. Is the internet free? Yes, it is. The password is on this card. Thank you. What time is check out? Check out is at eleven in the morning. Okay. Can I leave my bag here tomorrow after check out? Yes, of course. Thank you very much. You are welcome. Here is your room key. Your room is on the fifth floor. Excuse me. Could you call a taxi for me, please? Sure. Where do you want to go? I need to go to Central Station. No problem. The taxi will be here in five minutes. Thank you. Your taxi is here now. Hello. Please take me to Central Station. Okay. Which entrance do you want? The south entrance, please. All right. It will take about twenty minutes. How much will it be? About two thousand five hundred yen, but traffic is a little heavy now. That is fine. Please use the fastest route. Sure. Please put on your seat belt.",
+    words: [
+      { term: 'check in', ja: 'チェックイン' },
+      { term: 'check out', ja: 'チェックアウト' },
+      { term: 'Please take me to', ja: '〜まで連れて行ってください' },
+      { term: 'traffic is a little heavy', ja: '少し渋滞しています' },
+      { term: 'put on your seat belt', ja: 'シートベルトを締めてください' },
+      { term: 'fastest route', ja: '最速ルート' },
+    ]
+  },
+  {
+    id: 'preset_03', num: '03', title: 'カフェ・レストラン',
+    body: "Good afternoon. Do you have a table for two? Yes, of course. Inside or outside? Inside, please. It is a little cold today. No problem. Please follow me. Here is your table. Thank you. Can we see the menu? Yes. Here are the food menu and the drink menu. Thank you. This is our first time here. Welcome. I hope you enjoy it. What do you recommend? Our tomato pasta is very popular. The chicken sandwich is also good. Which one do you like better? I like the tomato pasta. It has fresh tomatoes and cheese. That sounds nice. Is it spicy? No, it is not spicy. It is mild and easy to eat. Great. I will have the tomato pasta, please. And I will have the chicken sandwich. Would you like anything to drink? Yes, one iced coffee and one orange juice, please. Sure. Would you like water, too? Yes, please. That would be great. Excuse me. How long will the food take? About fifteen minutes. That is fine. Thank you. Here is your food. Enjoy your meal. Thank you. It looks delicious. This pasta is really good. My sandwich is nice, too. Excuse me. Can we have the bill, please? Certainly. Would you like to pay together or separately? Together, please. Can I pay by card? Yes, you can. Great. Thank you for your help. You are welcome. Have a nice day.",
+    words: [
+      { term: 'What do you recommend', ja: '何がおすすめですか？' },
+      { term: 'Would you like anything to drink', ja: 'お飲み物はいかがですか？' },
+      { term: 'Enjoy your meal', ja: 'ごゆっくりどうぞ' },
+      { term: 'Can we have the bill', ja: 'お会計をお願いします' },
+      { term: 'pay separately', ja: '別々に支払う' },
+      { term: 'mild and easy to eat', ja: '辛くなくて食べやすい' },
+    ]
+  },
+  {
+    id: 'preset_04a', num: '04a', title: '道聞く・雑談（駅まで）',
+    body: "Excuse me, am I near the train station? No, the station is not near here. Oh, I think I am lost. That is okay. Where do you want to go? I want to go to Green Park. Green Park is about ten minutes from here. Can I walk there? Yes, you can. Go straight on this street. Then what should I do? Turn left at the bakery. Is the bakery on the corner? Yes, it is. You will see a small red sign. Thank you. Is the park busy today? A little. It is sunny, so many families are there. That sounds nice. Are you visiting this city? Yes, I arrived yesterday. Do you like it so far? Yes, very much. The food is good, and people are kind. I am glad to hear that. Do you know a good cafe near the park? Yes. There is a small cafe next to the lake. What do they sell? They sell coffee, tea, sandwiches, and cake. Great. I will go there after a walk. Good idea. The chocolate cake is very popular. Thank you for your help. You are welcome. Enjoy your day. I will. Have a nice day too.",
+    words: [
+      { term: 'I think I am lost', ja: '道に迷ったようです' },
+      { term: 'Go straight on this street', ja: 'この道をまっすぐ進んでください' },
+      { term: 'Turn left at the bakery', ja: 'パン屋で左に曲がってください' },
+      { term: 'on the corner', ja: '角にある' },
+      { term: 'Are you visiting this city', ja: 'この街を観光していますか？' },
+    ]
+  },
+  {
+    id: 'preset_04b', num: '04b', title: '道聞く・雑談（美術館）',
+    body: "Excuse me, does this bus go to the museum? No, this bus goes to the airport. Oh, I see. Which bus should I take? Take bus number 12. Where is the bus stop? It is across the street, next to the bank. Thank you. How often does the bus come? About every fifteen minutes. That is helpful. Is the museum far? Not very far. It takes about twenty minutes by bus. Are you from this city? Yes, I live near here. It is a nice city. Thank you. Many people like the old buildings. I saw some beautiful streets this morning. Then you should visit the old market too. Is it near the museum? Yes, it is five minutes on foot. Great. What can I buy there? You can buy fruit, snacks, and small gifts. That sounds fun. Yes, and the people there are friendly. Thank you for the advice. No problem. Have a good trip.",
+    words: [
+      { term: 'How often does the bus come', ja: 'バスはどのくらいの頻度で来ますか？' },
+      { term: 'on foot', ja: '徒歩で' },
+      { term: 'across the street', ja: '通りの向こう側に' },
+      { term: 'old market', ja: '昔からの市場' },
+    ]
+  },
+  {
+    id: 'preset_04c', num: '04c', title: '道聞く・雑談（ホテル）',
+    body: "Excuse me, I cannot find my hotel. What is the name of your hotel? It is City View Hotel. Oh, I know it. It is near the river. Can you show me on the map? Sure. We are here now. Thank you. How do I get there? Walk straight for two blocks. Then turn right at the traffic lights. Is it a big hotel? Yes, it is tall and white. That helps. I was worried. Do not worry. It is easy to find. Thank you. This is my first time here. Welcome. Where are you from? I am from Japan. Really? I want to visit Japan one day. You should. It is a very interesting country. I like Japanese food. What food do you like? I like ramen and sushi. They are very popular. Yes. Well, enjoy your stay here. Thank you very much.",
+    words: [
+      { term: 'I cannot find my hotel', ja: 'ホテルが見つかりません' },
+      { term: 'Walk straight for two blocks', ja: '2ブロックまっすぐ進んでください' },
+      { term: 'Turn right at the traffic lights', ja: '信号で右に曲がってください' },
+      { term: 'This is my first time here', ja: 'ここは初めてです' },
+      { term: 'near the river', ja: '川の近くに' },
+    ]
+  },
+  {
+    id: 'preset_04d', num: '04d', title: '道聞く・雑談（店）',
+    body: "Excuse me, is this the way to the shopping street? Yes, it is. You are going the right way. Great. How long does it take? About seven minutes on foot. Thank you. Is it open now? Yes, most shops are open until eight. Good. I want to buy a present. What kind of present? Maybe something local. Then try the small gift shop near the clock tower. What do they sell? They sell postcards, cups, and local sweets. That sounds perfect. Are you here on holiday? Yes, just for three days. Only three days? That is short. Yes, but I want to see many places. Then do not miss the night view. Where can I see it? From the bridge near the river. Is it safe at night? Yes, but stay on the main street. Okay, thank you for the tip. You are welcome. Enjoy shopping.",
+    words: [
+      { term: 'something local', ja: '地元のもの' },
+      { term: 'gift shop', ja: 'ギフトショップ・お土産屋' },
+      { term: 'night view', ja: '夜景' },
+      { term: 'stay on the main street', ja: '大通りを通ってください' },
+      { term: 'clock tower', ja: '時計台' },
+      { term: 'the right way', ja: '正しい道' },
+    ]
+  },
+  {
+    id: 'preset_s1', num: 'S1', title: '自己紹介｜Opening',
+    body: `Hi, nice to meet you. I'm Koki.\nI'm from Shizuoka. It's a city near Mt. Fuji, about an hour from Tokyo by bullet train.\nThat must be beautiful!\nYes! We're so used to it, but visitors always love it.\nI'm a structural designer. I design tent-like fabric roofs. You know the big white curved roofs at airports or stadiums? I design that kind of roof.\nActually, I worked on the Osaka Expo 2025. You know the Grand Ring — that huge wooden ring? I designed part of the fabric roof on top. It was only my first year at the company, so I felt really proud.\nOh, I saw it on the news!\nReally? It was a huge project for me.`,
+    words: [
+      { term: 'bullet train', ja: '新幹線' },
+      { term: 'structural designer', ja: '構造設計士' },
+      { term: 'fabric roof', ja: '膜屋根' },
+      { term: 'Grand Ring', ja: '大屋根リング（大阪万博）' },
+      { term: 'I felt really proud', ja: '本当に誇らしかった' },
+    ]
+  },
+  {
+    id: 'preset_s2', num: 'S2', title: '自己紹介｜膜構造の説明',
+    body: `So, a membrane structure is a roof made of strong fabric — not concrete or metal. We pull the fabric tight, and that makes it strong. It's like a tent, but much bigger and stronger.\nOh, like a circus tent?\nYes, exactly! But for real buildings.\nThe good thing is, it's very light. So we can cover a huge space — like a stadium — with very few pillars. And the fabric lets soft light through, so it's bright inside, even in the daytime.\nHow big can it be?\nSome are over 100 meters wide.\nAlso, we can make beautiful curved shapes that are very hard to make with concrete. Honestly, that's my favorite part.\nThat sounds artistic!\nYes! It's between engineering and art.\nBecause it's light and flexible, it's actually strong against earthquakes. For strong wind like typhoons, we check the calculations very carefully. And the fabric lasts about 30 years or more.\nMy company does everything — design, making the fabric, and installation. I'm on the design team, and I handle the structure. I make sure the roof is strong and safe.\nSo you're an engineer?\nYes, a structural engineer for these fabric roofs.`,
+    words: [
+      { term: 'membrane structure', ja: '膜構造' },
+      { term: 'pull the fabric tight', ja: '布をピンと張る' },
+      { term: 'pillars', ja: '柱' },
+      { term: 'flexible', ja: '柔軟な' },
+      { term: 'strong against earthquakes', ja: '地震に強い' },
+      { term: 'installation', ja: '施工・設置' },
+    ]
+  },
+  {
+    id: 'preset_s3', num: 'S3', title: '自己紹介｜地元・富士山',
+    body: `I'm from Shizuoka. It's famous for Mt. Fuji and green tea. From my hometown, you can see Mt. Fuji almost every day.\nThat must be beautiful!\nYes! We're so used to it, but visitors always love it.\nWhen I was ten, I climbed Mt. Fuji. I got sick from the thin air, and at the top I fell asleep right away! But on the way up, I saw the night sky from above the clouds — the stars were amazing.\nWow, did you reach the top?\nYes, somehow!\nShizuoka is famous for having the best green tea in Japan. At my grandfather's house, we drank it every day. Now, when I drink cheap tea somewhere, I can tell the difference!\nDo you like tea?\nYes, especially real Shizuoka tea.\nMy hometown, Shimizu, is the setting of a famous anime called Chibi Maruko-chan. My wife loves the author, so we visited a special exhibition together.\nI know that anime!\nReally? That's my hometown!\nShimizu has a fishing port, so the seafood is very fresh. Funny thing is, I didn't like fish until I moved to Tokyo. Now I love it, and I really miss it.\nWhat's your favorite?\nFresh tuna, and shirasu — baby sardines.\nNow I live near Yokohama with my wife. I like the city — it has a nice, relaxed atmosphere. My wife knows all the good spots, so she's basically my tour guide.\nYokohama is nice!\nYeah, we went to a nice little bar in Noge recently.`,
+    words: [
+      { term: 'the setting of', ja: '〜の舞台' },
+      { term: 'I can tell the difference', ja: '違いが分かる' },
+      { term: 'fishing port', ja: '漁港' },
+      { term: 'altitude sickness', ja: '高山病' },
+      { term: 'shirasu', ja: '白子（しらす）・小さなイワシ' },
+    ]
+  },
+  {
+    id: 'preset_s4', num: 'S4', title: '自己紹介｜趣味',
+    body: `In my free time, I do acrobatics. I can do a backflip! Well… with a little help. I'm still practicing to do it on my own.\nNo way, show me!\nHaha, maybe not here!\nThere was a class just a two-minute walk from my old apartment, so I started going. My body is pretty flexible — I can do a Y-balance, holding my leg straight up.\nThat's impressive!\nThanks! Stretching every day helps.\nBefore that, I played table tennis for many years. In high school, my team went to the national tournament. I wasn't the star, though — my teammates were really strong!\nWere you good?\nI was okay! I was an offensive player with lots of topspin.\nI also love anime. Every night before bed, I watch anime on my phone — at 1.5 speed, so I can get through more episodes.\nWhat anime do you like?\nI like Hunter x Hunter and Demon Slayer.\nOne more thing — I've been playing a mobile game called Clash Royale for six years. All my friends quit, but I still play alone. I'm in a top clan — it's ranked in the top five in Japan!\nTop five? Amazing!\nWell, the clan is — I'm just a member! But it's my one hidden hobby.`,
+    words: [
+      { term: 'backflip', ja: 'バク転' },
+      { term: 'flexible', ja: '体が柔らかい' },
+      { term: 'Y-balance', ja: 'Yバランス（脚を真上に上げるポーズ）' },
+      { term: 'offensive player', ja: '攻撃型プレーヤー' },
+      { term: 'topspin', ja: 'トップスピン' },
+      { term: 'hidden hobby', ja: '隠れた趣味' },
+    ]
+  },
+  {
+    id: 'preset_s5', num: 'S5', title: '自己紹介｜生い立ち',
+    body: `When I was four, I lived in Chicago for about a year because of my dad's job. I was too young to speak much English, but I met people from many different countries. I think that's why I'm pretty open-minded today.\nOh, you lived in the US?\nJust as a kid! I don't remember much, though.\nWhen I was ten, I had surgery on my leg, and I was on crutches for a while. It was tough, but it taught me what it's like to have a disability. That experience really changed my perspective.\nThat sounds hard.\nYeah, but honestly, I'm glad I learned it early.\nIn university, I studied architecture. Why architecture? Well — my family's house was very old, and I wanted the knowledge to rebuild it myself someday. That's how I got interested in it.\nDid you rebuild it?\nNot yet! But maybe someday.\nNow I've worked at my company for five years. Last year, I passed the national exam to become a first-class licensed architect. It's a really tough exam, so I was so relieved and happy.\nCongratulations!\nThank you! It took a lot of studying.`,
+    words: [
+      { term: 'open-minded', ja: '偏見がない・寛容' },
+      { term: 'on crutches', ja: '松葉杖をついて' },
+      { term: 'disability', ja: '障害・体の不自由' },
+      { term: 'licensed architect', ja: '一級建築士' },
+      { term: 'national exam', ja: '国家試験' },
+    ]
+  },
+  {
+    id: 'preset_s6', num: 'S6', title: '自己紹介｜妻・家族',
+    body: `I got married this year, in March. My wife is a nurse. She's cheerful, strong, and really funny — I respect her so much.\nCongratulations! How did you meet?\nWe actually met on a dating app. It's pretty common in Japan now. On our first date, I knew she was special.\nOh, a dating app!\nYeah, it worked out great!\nShe's the opposite of me. I'm quiet and I think a lot, while she's bright and full of energy. I think that's why we fit well.\nOpposites attract!\nExactly!\nThis autumn, we're going to France for our honeymoon. I'm excited — but honestly, that's also why I'm practicing English right now!\nFrance, nice! Have you been before?\nNo, it's our first time.\nMy parents still live in Shizuoka. We also have a pet turtle — I've had it since I was ten! Funny, right?\nA turtle? How long do they live?\nA long time — maybe longer than me!`,
+    words: [
+      { term: 'dating app', ja: 'マッチングアプリ' },
+      { term: 'opposites attract', ja: '正反対が引き合う' },
+      { term: 'honeymoon', ja: '新婚旅行' },
+      { term: 'she fit well', ja: '相性が良い' },
+      { term: 'pet turtle', ja: 'ペットの亀' },
+    ]
+  },
+  {
+    id: 'preset_s7', num: 'S7', title: '自己紹介｜将来の夢・価値観',
+    body: `My dream is to have more freedom — freedom of time and place. I don't want to work just to survive. I want to choose how I spend my days.\nThat sounds nice! How?\nTo do that, I'm learning about AI and investing. I want to build systems that generate passive income. Someday, maybe I'll start my own business.\nOh, you're into AI?\nYeah, I'm a beginner, but I love it.\nIn my career, I want to become a real expert in structural design. That's the skill I want to master.\nSo you love your job?\nYes, especially the structure part.\nAs a person, I try to be a giver, not a taker. And I try to stay relaxed — not too serious. I think that balance keeps me happy.\nThat's a good way to live.\nThanks, I'm still learning!`,
+    words: [
+      { term: 'freedom of time and place', ja: '時間と場所の自由' },
+      { term: 'passive income', ja: '不労所得' },
+      { term: 'a giver not a taker', ja: '与える人・奪わない人' },
+      { term: 'master', ja: '極める' },
+      { term: 'start my own business', ja: '起業する' },
+    ]
+  },
+  {
+    id: 'preset_s8', num: 'S8', title: '自己紹介｜日本の良さ・問題',
+    body: `I love how safe and clean Japan is. You can leave your bag on a table and it'll still be there. And the toilets — even the public ones are amazing!\nReally? That's so different from my country!\nYeah, we kind of take it for granted.\nThe food is delicious, and the service is amazing — even at cheap places. Oh, and we can eat raw eggs safely, because the food safety is so strict.\nRaw eggs?!\nYes! On rice, it's delicious.\nBut there are problems too. People work too much. Wages haven't gone up for years, so with the weak yen, I get a bit worried about the future.\nYeah, I've heard that about Japan.\nIt's a real issue for young people.\nAlso, Japan still loves paper and stamps. At work, we use a hanko — a personal seal — instead of a signature. It feels a little old-fashioned!\nA stamp instead of a signature?\nYes, and the position of the stamp even shows your rank!`,
+    words: [
+      { term: 'take it for granted', ja: '当たり前だと思う' },
+      { term: 'raw eggs', ja: '生卵' },
+      { term: 'the weak yen', ja: '円安' },
+      { term: 'hanko', ja: '個人の印鑑' },
+      { term: 'old-fashioned', ja: '時代遅れ' },
+    ]
+  },
+  {
+    id: 'preset_q1', num: 'Q1', title: "よく聞かれる質問｜空港チェックイン", ver: 1,
+    body: "Good morning. Can I see your passport, please? Sure. Here you are. Where are you flying to today? To Shanghai. How many bags are you checking in? Just one. Please put it on the scale. Did you pack this bag yourself? Yes, I did. Are there any batteries, power banks, or lighters in it? No, my power bank is in my carry-on. Would you like a window seat or an aisle seat? An aisle seat, please. Your bag is two kilos over the limit. Can I move some things to my carry-on? Sure, go ahead. Here is your boarding pass. Boarding starts at ten twenty at Gate fifteen. Thank you.",
+    words: [
+      { term: "checking in", ja: "（荷物を）預ける" },
+      { term: "scale", ja: "はかり" },
+      { term: "pack", ja: "荷物を詰める" },
+      { term: "power bank", ja: "モバイルバッテリー" },
+      { term: "carry-on", ja: "機内持ち込みの手荷物" },
+      { term: "aisle seat", ja: "通路側の席" },
+      { term: "over the limit", ja: "制限を超えている" },
+      { term: "boarding pass", ja: "搭乗券" }
+    ],
+    trans: {
+      "Good morning.": "係員：おはようございます。",
+      "Can I see your passport, please?": "係員：パスポートを拝見できますか？",
+      "Sure.": "自分：はい。",
+      "Here you are.": "自分：どうぞ。",
+      "Where are you flying to today?": "係員：本日はどちらまで？",
+      "To Shanghai.": "自分：上海までです。",
+      "How many bags are you checking in?": "係員：預ける荷物はいくつですか？",
+      "Just one.": "自分：1つだけです。",
+      "Please put it on the scale.": "係員：はかりに載せてください。",
+      "Did you pack this bag yourself?": "係員：この荷物はご自身で詰めましたか？",
+      "Yes, I did.": "自分：はい、自分で詰めました。",
+      "Are there any batteries, power banks, or lighters in it?": "係員：中に電池、モバイルバッテリー、ライターは入っていますか？",
+      "No, my power bank is in my carry-on.": "自分：いいえ、モバイルバッテリーは機内持ち込みの方に入れています。",
+      "Would you like a window seat or an aisle seat?": "係員：窓側と通路側、どちらがよろしいですか？",
+      "An aisle seat, please.": "自分：通路側でお願いします。",
+      "Your bag is two kilos over the limit.": "係員：お荷物が制限を2キロ超えています。",
+      "Can I move some things to my carry-on?": "自分：手荷物の方に移してもいいですか？",
+      "Sure, go ahead.": "係員：どうぞ。",
+      "Here is your boarding pass.": "係員：こちらが搭乗券です。",
+      "Boarding starts at ten twenty at Gate fifteen.": "係員：搭乗は10時20分から、15番ゲートです。",
+      "Thank you.": "自分：ありがとうございます。"
+    }
+  },
+  {
+    id: 'preset_q2', num: 'Q2', title: "よく聞かれる質問｜保安検査", ver: 1,
+    body: "Please put your bags in the tray. Take out your laptop and any liquids. Okay. Do you have any liquids in your bag? Just this bottle of water. You can't take that through. Please drink it or throw it away. Please take off your jacket and belt. Empty your pockets, please. My phone and wallet, too? Yes, everything. Step through, please. Raise your arms. Turn around, please. Is this your bag? Yes, it is. We need to check it. Please open it. Okay, you're good to go.",
+    words: [
+      { term: "tray", ja: "トレー" },
+      { term: "liquids", ja: "液体物" },
+      { term: "take that through", ja: "（検査場の先へ）持ち込む" },
+      { term: "throw it away", ja: "捨てる" },
+      { term: "take off", ja: "脱ぐ・外す" },
+      { term: "Empty your pockets", ja: "ポケットを空にして" },
+      { term: "Step through", ja: "（ゲートを）通って" },
+      { term: "Raise your arms", ja: "両腕を上げて" },
+      { term: "you're good to go", ja: "行っていいですよ" }
+    ],
+    trans: {
+      "Please put your bags in the tray.": "係員：荷物をトレーに入れてください。",
+      "Take out your laptop and any liquids.": "係員：ノートパソコンと液体物は出してください。",
+      "Okay.": "自分：はい。",
+      "Do you have any liquids in your bag?": "係員：かばんに液体物は入っていますか？",
+      "Just this bottle of water.": "自分：この水のボトルだけです。",
+      "You can't take that through.": "係員：それは持ち込めません。",
+      "Please drink it or throw it away.": "係員：飲むか捨ててください。",
+      "Please take off your jacket and belt.": "係員：上着とベルトを外してください。",
+      "Empty your pockets, please.": "係員：ポケットの中の物を出してください。",
+      "My phone and wallet, too?": "自分：スマホと財布もですか？",
+      "Yes, everything.": "係員：はい、全部です。",
+      "Step through, please.": "係員：（ゲートを）通ってください。",
+      "Raise your arms.": "係員：両腕を上げてください。",
+      "Turn around, please.": "係員：後ろを向いてください。",
+      "Is this your bag?": "係員：これはあなたのかばんですか？",
+      "Yes, it is.": "自分：はい、そうです。",
+      "We need to check it.": "係員：確認が必要です。",
+      "Please open it.": "係員：開けてください。",
+      "Okay, you're good to go.": "係員：はい、行って大丈夫です。"
+    }
+  },
+  {
+    id: 'preset_q3', num: 'Q3', title: "よく聞かれる質問｜荷物検査で別室に呼ばれたとき", ver: 1,
+    body: "Excuse me, sir. Is this your suitcase? Yes, it's mine. Please come with me. We need to inspect your bag. Okay. Is there a problem? Something in your bag showed up on the X-ray. Sorry, could you say that more slowly? There is something in your bag. We need to check it. I see. Please open your suitcase. Sure. Here you go. Did you pack this bag yourself? Yes, I did. Are you carrying anything for someone else? No, everything is mine. Do you have a power bank or spare batteries in here? Yes, there's a power bank in this pocket. Power banks are not allowed in checked baggage. Please take it out and carry it with you. I see. Sorry about that. What is this item? It's a measuring tape. I use it for work. Do you have any lighters, knives, or sprays? No, I don't. Okay, you can close your bag. Please sign here to confirm. Can I go now? Yes, you're all set. Have a nice flight.",
+    words: [
+      { term: "inspect", ja: "検査する" },
+      { term: "showed up on the X-ray", ja: "X線で引っかかった" },
+      { term: "pack this bag yourself", ja: "自分で荷造りした" },
+      { term: "for someone else", ja: "誰かのために（頼まれて）" },
+      { term: "power bank", ja: "モバイルバッテリー" },
+      { term: "spare batteries", ja: "予備の電池" },
+      { term: "checked baggage", ja: "預け荷物" },
+      { term: "carry it with you", ja: "手で持っていく" },
+      { term: "measuring tape", ja: "メジャー・巻尺" },
+      { term: "sign here", ja: "ここにサインして" },
+      { term: "you're all set", ja: "これで完了です" }
+    ],
+    trans: {
+      "Excuse me, sir.": "係員：すみません。",
+      "Is this your suitcase?": "係員：これはあなたのスーツケースですか？",
+      "Yes, it's mine.": "自分：はい、私のです。",
+      "Please come with me.": "係員：一緒に来てください。",
+      "We need to inspect your bag.": "係員：荷物を検査する必要があります。",
+      "Okay.": "自分：わかりました。",
+      "Is there a problem?": "自分：何か問題がありますか？",
+      "Something in your bag showed up on the X-ray.": "係員：X線検査で、かばんの中の物が引っかかりました。",
+      "Sorry, could you say that more slowly?": "自分：すみません、もう少しゆっくり言っていただけますか？",
+      "There is something in your bag.": "係員：かばんの中に何かあります。",
+      "We need to check it.": "係員：確認が必要です。",
+      "I see.": "自分：わかりました。",
+      "Please open your suitcase.": "係員：スーツケースを開けてください。",
+      "Sure.": "自分：はい。",
+      "Here you go.": "自分：どうぞ。",
+      "Did you pack this bag yourself?": "係員：この荷物はご自身で詰めましたか？",
+      "Yes, I did.": "自分：はい、自分で詰めました。",
+      "Are you carrying anything for someone else?": "係員：誰かに頼まれて運んでいる物はありますか？",
+      "No, everything is mine.": "自分：いいえ、全部私の物です。",
+      "Do you have a power bank or spare batteries in here?": "係員：この中にモバイルバッテリーか予備の電池はありますか？",
+      "Yes, there's a power bank in this pocket.": "自分：はい、このポケットにモバイルバッテリーがあります。",
+      "Power banks are not allowed in checked baggage.": "係員：モバイルバッテリーは預け荷物に入れられません。",
+      "Please take it out and carry it with you.": "係員：取り出して、手荷物で持っていってください。",
+      "Sorry about that.": "自分：すみません。",
+      "What is this item?": "係員：これは何ですか？",
+      "It's a measuring tape.": "自分：メジャー（巻尺）です。",
+      "I use it for work.": "自分：仕事で使います。",
+      "Do you have any lighters, knives, or sprays?": "係員：ライター、刃物、スプレーはありますか？",
+      "No, I don't.": "自分：いいえ、ありません。",
+      "Okay, you can close your bag.": "係員：はい、かばんを閉めていいですよ。",
+      "Please sign here to confirm.": "係員：確認のため、ここにサインしてください。",
+      "Can I go now?": "自分：もう行ってもいいですか？",
+      "Yes, you're all set.": "係員：はい、大丈夫です。",
+      "Have a nice flight.": "係員：よいフライトを。"
+    }
+  },
+  {
+    id: 'preset_q4', num: 'Q4', title: "よく聞かれる質問｜入国審査", ver: 1,
+    body: "Passport, please. Here you are. What's the purpose of your visit? Business. How long will you be staying? For five days. Where are you staying? At a hotel near the office. Here's the address. What do you do? I'm an architect. Is this your first time here? Yes, it is. Do you have a return ticket? Yes. Here it is. Please look at the camera. Put your left four fingers on the scanner. Now your right hand. Now both thumbs. Okay, you're done. Welcome. Thank you.",
+    words: [
+      { term: "purpose of your visit", ja: "渡航の目的" },
+      { term: "How long will you be staying", ja: "どのくらい滞在しますか" },
+      { term: "What do you do", ja: "お仕事は？（何をしている人か）" },
+      { term: "return ticket", ja: "帰りの航空券" },
+      { term: "look at the camera", ja: "カメラを見て" },
+      { term: "scanner", ja: "（指紋の）読み取り機" },
+      { term: "thumbs", ja: "親指" }
+    ],
+    trans: {
+      "Passport, please.": "係員：パスポートをお願いします。",
+      "Here you are.": "自分：どうぞ。",
+      "What's the purpose of your visit?": "係員：渡航の目的は何ですか？",
+      "Business.": "自分：仕事です。",
+      "How long will you be staying?": "係員：どのくらい滞在しますか？",
+      "For five days.": "自分：5日間です。",
+      "Where are you staying?": "係員：どこに滞在しますか？",
+      "At a hotel near the office.": "自分：会社の近くのホテルです。",
+      "Here's the address.": "自分：これが住所です。",
+      "What do you do?": "係員：お仕事は何ですか？",
+      "I'm an architect.": "自分：建築士です。",
+      "Is this your first time here?": "係員：こちらは初めてですか？",
+      "Yes, it is.": "自分：はい、初めてです。",
+      "Do you have a return ticket?": "係員：帰りの航空券はありますか？",
+      "Yes.": "自分：はい。",
+      "Here it is.": "自分：こちらです。",
+      "Please look at the camera.": "係員：カメラを見てください。",
+      "Put your left four fingers on the scanner.": "係員：左手の指4本をスキャナーに置いてください。",
+      "Now your right hand.": "係員：次は右手です。",
+      "Now both thumbs.": "係員：最後に両手の親指です。",
+      "Okay, you're done.": "係員：はい、終わりです。",
+      "Welcome.": "係員：ようこそ。",
+      "Thank you.": "自分：ありがとう。"
+    }
+  },
+  {
+    id: 'preset_q5', num: 'Q5', title: "よく聞かれる質問｜税関", ver: 1,
+    body: "Do you have anything to declare? No, nothing to declare. Are you carrying a large amount of cash? No, just a little. Any food, meat, or fruit? Just some snacks from Japan. Please put your bags on the belt. What's in this box? Gifts for my coworkers. They're Japanese sweets. Okay. Go ahead.",
+    words: [
+      { term: "declare", ja: "申告する" },
+      { term: "a large amount of cash", ja: "多額の現金" },
+      { term: "belt", ja: "（X線検査の）ベルト" },
+      { term: "coworkers", ja: "同僚" },
+      { term: "Go ahead", ja: "どうぞ（進んで）" }
+    ],
+    trans: {
+      "Do you have anything to declare?": "係員：申告するものはありますか？",
+      "No, nothing to declare.": "自分：いいえ、ありません。",
+      "Are you carrying a large amount of cash?": "係員：多額の現金を持っていますか？",
+      "No, just a little.": "自分：いいえ、少しだけです。",
+      "Any food, meat, or fruit?": "係員：食べ物、肉、果物は？",
+      "Just some snacks from Japan.": "自分：日本のお菓子が少しだけです。",
+      "Please put your bags on the belt.": "係員：荷物をベルトに載せてください。",
+      "What's in this box?": "係員：この箱の中身は何ですか？",
+      "Gifts for my coworkers.": "自分：同僚へのお土産です。",
+      "They're Japanese sweets.": "自分：日本のお菓子です。",
+      "Okay.": "係員：わかりました。",
+      "Go ahead.": "係員：どうぞ。"
+    }
+  },
+  {
+    id: 'preset_q6', num: 'Q6', title: "よく聞かれる質問｜お店・ホテル", ver: 1,
+    body: "Cash or card? Card, please. Would you like a bag? No, thanks. Do you need a receipt? Yes, please. For here or to go? For here. Can I have your room number? Room twelve-oh-five. We need a credit card for the deposit. Okay. Here's my card. Did you have anything from the minibar? No, nothing. Would you like me to call a taxi for you? Yes, please. Thank you.",
+    words: [
+      { term: "Cash or card", ja: "現金かカードか" },
+      { term: "receipt", ja: "レシート・領収書" },
+      { term: "For here or to go", ja: "店内か持ち帰りか" },
+      { term: "deposit", ja: "デポジット（保証金）" },
+      { term: "minibar", ja: "部屋の冷蔵庫の有料ドリンク等" }
+    ],
+    trans: {
+      "Cash or card?": "店員：現金ですか、カードですか？",
+      "Card, please.": "自分：カードで。",
+      "Would you like a bag?": "店員：袋はご入用ですか？",
+      "No, thanks.": "自分：いいえ、結構です。",
+      "Do you need a receipt?": "店員：レシートはご入用ですか？",
+      "Yes, please.": "自分：はい、お願いします。",
+      "For here or to go?": "店員：店内ですか、お持ち帰りですか？",
+      "For here.": "自分：店内で。",
+      "Can I have your room number?": "フロント：お部屋番号を教えていただけますか？",
+      "Room twelve-oh-five.": "自分：1205号室です。",
+      "We need a credit card for the deposit.": "フロント：デポジット（保証金）のためにクレジットカードが必要です。",
+      "Okay.": "自分：わかりました。",
+      "Here's my card.": "自分：カードです。",
+      "Did you have anything from the minibar?": "フロント：ミニバーの物は何か使いましたか？",
+      "No, nothing.": "自分：いいえ、何も。",
+      "Would you like me to call a taxi for you?": "フロント：タクシーをお呼びしましょうか？",
+      "Thank you.": "自分：ありがとう。"
+    }
+  },
+  {
+    id: 'preset_f0', num: 'F0', title: "フランス語｜まずはこれだけ（頻出19）", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonsoir ! Merci ! Merci beaucoup ! S'il vous plaît. Excusez-moi. Pardon ! Oui, s'il vous plaît. Non, merci. D'accord. Au revoir ! Bonne journée ! Merci, vous aussi ! Je ne parle pas français. Vous parlez anglais ? Je ne comprends pas. Pouvez-vous répéter, s'il vous plaît ? Plus lentement, s'il vous plaît. Où sont les toilettes ?",
+    words: [
+      { term: "s'il vous plaît", ja: "お願いします（依頼の万能語）" },
+      { term: "Excusez-moi", ja: "すみません（呼びかけ）" },
+      { term: "Pardon", ja: "すみません（ぶつかった時）" },
+      { term: "D'accord", ja: "わかりました" },
+      { term: "Bonne journée", ja: "よい一日を" },
+      { term: "vous aussi", ja: "あなたも" }
+    ],
+    trans: {
+      "Bonjour !": "こんにちは！",
+      "Bonsoir !": "こんばんは！",
+      "Merci !": "ありがとう！",
+      "Merci beaucoup !": "ありがとうございます！",
+      "S'il vous plaît.": "お願いします。",
+      "Excusez-moi.": "すみません（呼び止めるとき）。",
+      "Pardon !": "すみません（ぶつかった・通してほしいとき）！",
+      "Oui, s'il vous plaît.": "はい、お願いします。",
+      "Non, merci.": "いえ、結構です。",
+      "D'accord.": "わかりました。",
+      "Au revoir !": "さようなら！",
+      "Bonne journée !": "よい一日を！",
+      "Merci, vous aussi !": "ありがとう、あなたも！",
+      "Je ne parle pas français.": "フランス語は話せません。",
+      "Vous parlez anglais ?": "英語は話せますか？",
+      "Je ne comprends pas.": "わかりません。",
+      "Pouvez-vous répéter, s'il vous plaît ?": "もう一度言っていただけますか？",
+      "Plus lentement, s'il vous plaît.": "もう少しゆっくりお願いします。",
+      "Où sont les toilettes ?": "トイレはどこですか？"
+    }
+  },
+  {
+    id: 'preset_f1', num: 'F1', title: "フランス語｜カフェ・パン屋", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonjour, monsieur. Qu'est-ce que je vous sers ? Un café crème et un croissant, s'il vous plaît. Sur place ou à emporter ? Sur place, s'il vous plaît. Très bien. Autre chose ? Non, c'est tout, merci. Ça fait combien ? Ça fait six euros cinquante. Je peux payer par carte ? Oui, bien sûr. Merci beaucoup. Bonne journée ! Merci, vous aussi. Au revoir !",
+    words: [
+      { term: "Qu'est-ce que je vous sers", ja: "何になさいますか？" },
+      { term: "Sur place ou à emporter", ja: "店内か、持ち帰りか" },
+      { term: "Autre chose", ja: "ほかには？" },
+      { term: "c'est tout", ja: "以上です" },
+      { term: "Ça fait combien", ja: "全部でいくら？" },
+      { term: "bien sûr", ja: "もちろん" }
+    ],
+    trans: {
+      "Bonjour !": "自分：こんにちは！",
+      "Bonjour, monsieur.": "店員：こんにちは（男性客に）。",
+      "Qu'est-ce que je vous sers ?": "店員：何になさいますか？",
+      "Un café crème et un croissant, s'il vous plaît.": "自分：カフェ・クレームとクロワッサンをお願いします。",
+      "Sur place ou à emporter ?": "店員：店内ですか、お持ち帰りですか？",
+      "Sur place, s'il vous plaît.": "自分：店内でお願いします。",
+      "Très bien.": "店員：かしこまりました。",
+      "Autre chose ?": "店員：ほかには？",
+      "Non, c'est tout, merci.": "自分：いえ、以上です。",
+      "Ça fait combien ?": "自分：全部でいくらですか？",
+      "Ça fait six euros cinquante.": "店員：6ユーロ50です。",
+      "Je peux payer par carte ?": "自分：カードで払えますか？",
+      "Oui, bien sûr.": "店員：はい、もちろん。",
+      "Merci beaucoup.": "自分：ありがとうございます。",
+      "Bonne journée !": "店員：よい一日を！",
+      "Merci, vous aussi.": "自分：ありがとう、あなたも。",
+      "Au revoir !": "自分：さようなら！"
+    }
+  },
+  {
+    id: 'preset_f2', num: 'F2', title: "フランス語｜レストラン", lang: 'fr-FR', ver: 1,
+    body: "Bonsoir ! Bonsoir. Vous avez une réservation ? Oui, au nom de Matsumoto. Pour deux personnes. Parfait. Suivez-moi, s'il vous plaît. Voici la carte. Merci. Qu'est-ce que vous nous conseillez ? Le plat du jour est très bon. C'est du poisson. Alors, deux plats du jour, s'il vous plaît. Et comme boisson ? Une carafe d'eau et un verre de vin rouge, s'il vous plaît. Tout se passe bien ? Oui, c'était délicieux ! L'addition, s'il vous plaît. Tout de suite. Merci, bonne soirée ! Merci, à vous aussi.",
+    words: [
+      { term: "Suivez-moi", ja: "ついて来てください" },
+      { term: "la carte", ja: "メニュー表（le menu はコースの意味）" },
+      { term: "le plat du jour", ja: "本日の料理" },
+      { term: "comme boisson", ja: "飲み物は" },
+      { term: "Tout se passe bien", ja: "問題ないですか？" },
+      { term: "L'addition", ja: "お会計" },
+      { term: "Tout de suite", ja: "すぐに" }
+    ],
+    trans: {
+      "Bonsoir !": "自分：こんばんは！",
+      "Bonsoir.": "店員：こんばんは。",
+      "Vous avez une réservation ?": "店員：ご予約はありますか？",
+      "Oui, au nom de Matsumoto.": "自分：はい、松本の名前で。",
+      "Pour deux personnes.": "自分：2名です。",
+      "Parfait.": "店員：承知しました。",
+      "Suivez-moi, s'il vous plaît.": "店員：こちらへどうぞ。",
+      "Voici la carte.": "店員：メニューです。",
+      "Merci.": "自分：ありがとう。",
+      "Qu'est-ce que vous nous conseillez ?": "自分：おすすめは何ですか？",
+      "Le plat du jour est très bon.": "店員：本日の料理がとてもおいしいですよ。",
+      "C'est du poisson.": "店員：魚料理です。",
+      "Alors, deux plats du jour, s'il vous plaît.": "自分：じゃあ、本日の料理を2つお願いします。",
+      "Et comme boisson ?": "店員：お飲み物は？",
+      "Une carafe d'eau et un verre de vin rouge, s'il vous plaît.": "自分：水のピッチャーと、赤ワインをグラスで1杯お願いします。",
+      "Tout se passe bien ?": "店員：（食事中に）いかがですか？",
+      "Oui, c'était délicieux !": "自分：はい、とてもおいしかったです！",
+      "L'addition, s'il vous plaît.": "自分：お会計をお願いします。",
+      "Tout de suite.": "店員：すぐにお持ちします。",
+      "Merci, bonne soirée !": "自分：ありがとう、よい夜を！",
+      "Merci, à vous aussi.": "店員：ありがとうございます、あなたも。"
+    }
+  },
+  {
+    id: 'preset_f3', num: 'F3', title: "フランス語｜お店・買い物", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonjour. Je peux vous aider ? Je regarde seulement, merci. D'accord. Excusez-moi, vous avez une autre taille ? Oui, voilà. Je peux l'essayer ? Bien sûr. La cabine est là-bas. C'est parfait. Je le prends. C'est pour offrir ? Non, c'est pour moi. Ça fait quarante-cinq euros. Voilà. Merci, au revoir ! Au revoir, bonne journée !",
+    words: [
+      { term: "Je peux vous aider", ja: "何かお探しですか？" },
+      { term: "Je regarde seulement", ja: "見ているだけです" },
+      { term: "une autre taille", ja: "別のサイズ" },
+      { term: "la cabine", ja: "試着室" },
+      { term: "Je le prends", ja: "これにします" },
+      { term: "C'est pour offrir", ja: "プレゼント用ですか？" }
+    ],
+    trans: {
+      "Bonjour !": "自分：こんにちは！",
+      "Bonjour.": "店員：こんにちは。",
+      "Je peux vous aider ?": "店員：何かお探しですか？",
+      "Je regarde seulement, merci.": "自分：見ているだけです、ありがとう。",
+      "D'accord.": "店員：わかりました。",
+      "Excusez-moi, vous avez une autre taille ?": "自分：すみません、別のサイズはありますか？",
+      "Oui, voilà.": "店員：はい、こちらです。",
+      "Je peux l'essayer ?": "自分：試着してもいいですか？",
+      "Bien sûr.": "店員：もちろん。",
+      "La cabine est là-bas.": "店員：試着室はあちらです。",
+      "C'est parfait.": "自分：ぴったりです。",
+      "Je le prends.": "自分：これにします。",
+      "C'est pour offrir ?": "店員：プレゼント用ですか？",
+      "Non, c'est pour moi.": "自分：いいえ、自分用です。",
+      "Ça fait quarante-cinq euros.": "店員：45ユーロです。",
+      "Voilà.": "自分：はい、どうぞ。",
+      "Merci, au revoir !": "店員：ありがとうございました！",
+      "Au revoir, bonne journée !": "自分：さようなら、よい一日を！"
+    }
+  },
+  {
+    id: 'preset_f4', num: 'F4', title: "フランス語｜メトロ・道を聞く", lang: 'fr-FR', ver: 1,
+    body: "Excusez-moi, madame. Oui ? Où est le métro, s'il vous plaît ? C'est tout droit, puis à gauche. C'est loin ? Non, c'est à cinq minutes à pied. Merci ! Pardon, ce métro va à Châtelet ? Oui, c'est la bonne direction. Et pour aller au Louvre ? Descendez à la station Palais-Royal – Musée du Louvre. Merci beaucoup ! Je vous en prie.",
+    words: [
+      { term: "tout droit", ja: "まっすぐ" },
+      { term: "à gauche", ja: "左に（右は à droite）" },
+      { term: "à cinq minutes à pied", ja: "歩いて5分" },
+      { term: "la bonne direction", ja: "正しい方向" },
+      { term: "Descendez", ja: "降りてください" },
+      { term: "Je vous en prie", ja: "どういたしまして" }
+    ],
+    trans: {
+      "Excusez-moi, madame.": "自分：すみません（女性に）。",
+      "Oui ?": "通行人：はい？",
+      "Où est le métro, s'il vous plaît ?": "自分：地下鉄の駅はどこですか？",
+      "C'est tout droit, puis à gauche.": "通行人：まっすぐ行って、それから左です。",
+      "C'est loin ?": "自分：遠いですか？",
+      "Non, c'est à cinq minutes à pied.": "通行人：いいえ、歩いて5分です。",
+      "Merci !": "自分：ありがとう！",
+      "Pardon, ce métro va à Châtelet ?": "自分：すみません、この地下鉄はシャトレに行きますか？",
+      "Oui, c'est la bonne direction.": "通行人：はい、この方向で合っていますよ。",
+      "Et pour aller au Louvre ?": "自分：ルーヴル美術館へは？",
+      "Descendez à la station Palais-Royal – Musée du Louvre.": "通行人：「パレ・ロワイヤル＝ルーヴル美術館」駅で降りてください。",
+      "Merci beaucoup !": "自分：ありがとうございます！",
+      "Je vous en prie.": "通行人：どういたしまして。"
+    }
+  },
+  {
+    id: 'preset_f5', num: 'F5', title: "フランス語｜ホテル", lang: 'fr-FR', ver: 1,
+    body: "Bonjour ! Bonjour, madame, monsieur. J'ai une réservation au nom de Matsumoto. Un instant, s'il vous plaît. Oui, c'est bien ça. Voici votre clé. Votre chambre est au troisième étage. Merci. À quelle heure est le petit-déjeuner ? De sept heures à dix heures. Et le code wifi, s'il vous plaît ? Il est sur la carte. Parfait, merci ! Le jour du départ, je peux laisser mes bagages ici ? Oui, bien sûr. Bon séjour !",
+    words: [
+      { term: "Un instant", ja: "少々お待ちください" },
+      { term: "au troisième étage", ja: "4階（フランスは地上階を0階と数える）" },
+      { term: "le petit-déjeuner", ja: "朝食" },
+      { term: "le jour du départ", ja: "出発の日" },
+      { term: "Bon séjour", ja: "よいご滞在を" }
+    ],
+    trans: {
+      "Bonjour !": "自分：こんにちは！",
+      "Bonjour, madame, monsieur.": "フロント：こんにちは（おふたりに）。",
+      "J'ai une réservation au nom de Matsumoto.": "自分：松本の名前で予約しています。",
+      "Un instant, s'il vous plaît.": "フロント：少々お待ちください。",
+      "Oui, c'est bien ça.": "フロント：はい、確かに。",
+      "Voici votre clé.": "フロント：こちらが鍵です。",
+      "Votre chambre est au troisième étage.": "フロント：お部屋は4階です（フランス式では3階）。",
+      "Merci.": "自分：ありがとう。",
+      "À quelle heure est le petit-déjeuner ?": "自分：朝食は何時ですか？",
+      "De sept heures à dix heures.": "フロント：7時から10時までです。",
+      "Et le code wifi, s'il vous plaît ?": "自分：それと、Wi-Fiのパスワードを教えてください。",
+      "Il est sur la carte.": "フロント：カードに書いてあります。",
+      "Parfait, merci !": "自分：完璧です、ありがとう！",
+      "Le jour du départ, je peux laisser mes bagages ici ?": "自分：出発の日に、ここに荷物を置いていけますか？",
+      "Oui, bien sûr.": "フロント：はい、もちろん。",
+      "Bon séjour !": "フロント：よいご滞在を！"
+    }
+  },
+  {
+    id: 'preset_f6', num: 'F6', title: "フランス語｜美術館・観光", lang: 'fr-FR', ver: 1,
+    body: "Bonjour, deux billets, s'il vous plaît. Vous avez une réservation ? Non. Alors, ça fait trente-quatre euros. Je peux payer par carte ? Oui. Voilà vos billets. On peut prendre des photos ? Oui, mais sans flash. À quelle heure ça ferme ? À dix-huit heures. Merci ! Excusez-moi, vous pouvez nous prendre en photo, s'il vous plaît ? Avec plaisir ! Un, deux, trois... Merci beaucoup ! C'est magnifique ici ! Nous sommes en voyage de noces. Oh, félicitations !",
+    words: [
+      { term: "billets", ja: "チケット" },
+      { term: "sans flash", ja: "フラッシュなしで" },
+      { term: "ça ferme", ja: "閉まる" },
+      { term: "Avec plaisir", ja: "喜んで" },
+      { term: "voyage de noces", ja: "新婚旅行" },
+      { term: "félicitations", ja: "おめでとう" }
+    ],
+    trans: {
+      "Bonjour, deux billets, s'il vous plaît.": "自分：こんにちは、チケットを2枚ください。",
+      "Vous avez une réservation ?": "係員：ご予約はありますか？",
+      "Non.": "自分：いいえ。",
+      "Alors, ça fait trente-quatre euros.": "係員：では、34ユーロです。",
+      "Je peux payer par carte ?": "自分：カードで払えますか？",
+      "Oui.": "係員：はい。",
+      "Voilà vos billets.": "係員：チケットです。",
+      "On peut prendre des photos ?": "自分：写真を撮ってもいいですか？",
+      "Oui, mais sans flash.": "係員：はい、フラッシュなしなら。",
+      "À quelle heure ça ferme ?": "自分：何時に閉まりますか？",
+      "À dix-huit heures.": "係員：18時です。",
+      "Merci !": "自分：ありがとう！",
+      "Excusez-moi, vous pouvez nous prendre en photo, s'il vous plaît ?": "自分：すみません、私たちの写真を撮っていただけますか？",
+      "Avec plaisir !": "通行人：喜んで！",
+      "Un, deux, trois...": "通行人：1、2、3…",
+      "Merci beaucoup !": "自分：ありがとうございます！",
+      "C'est magnifique ici !": "自分：ここは本当にきれいですね！",
+      "Nous sommes en voyage de noces.": "自分：新婚旅行で来ているんです。",
+      "Oh, félicitations !": "通行人：まあ、おめでとうございます！"
+    }
+  },
+];
+// ─────────────────────────────────────────────────────────────────────
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || { texts: [] }; }
+  catch { return { texts: [] }; }
+}
+function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function initPresets() {
+  if (!PRESET_TEXTS.length) return;
+  const d = load();
+  const ids = new Set(d.texts.map(t => t.id));
+  let changed = false;
+  const added = [];
+  PRESET_TEXTS.forEach(t => {
+    if (!ids.has(t.id)) {
+      added.push(t); changed = true;
+    } else {
+      const ex = d.texts.find(x => x.id === t.id);
+      if (ex && !ex.num && t.num) { ex.num = t.num; changed = true; }
+      // ver を上げたプリセットは中身を差し替える（内容を直したときに端末へ反映させるため）
+      if (ex && t.ver && (ex.ver || 0) < t.ver) { Object.assign(ex, JSON.parse(JSON.stringify(t))); changed = true; }
+    }
+  });
+  if (added.length) d.texts.unshift(...added);   // 追加分は定義順のまま先頭に
+  if (changed) save(d);
+}
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function splitSents(text) {
+  // 略語の "." を一時保護してから分割
+  const protected_ = text.replace(/\b(Mr|Mrs|Ms|Dr|St|Mt|Prof|Jr|Sr|vs|No|Fig|M|Mme|Mlle)\./g, '$1․');
+  const sents = protected_.split(/(?<=[.!?])\s+/).map(s => s.replace(/․/g, '.').trim()).filter(Boolean);
+  return sents.length ? sents : [text.trim()];
+}
+
+// ═══════════════════════════════════════════════
+// SPEECH
+// ═══════════════════════════════════════════════
+const synth = window.speechSynthesis;
+let spState = { playing: false, idx: 0, sents: [], speed: 1.0, lang: 'en-US', trans: null, onTick: null, onDone: null };
+let showTrans = true;   // フランス語など訳付きの文章で、訳を表示するか
+
+// ── なまり切替（英語の文章だけ） ──
+// 米・英・豪・インドは本物の英語音声。中国・ベトナム・フランスは、その国の言葉の音声に英語を読ませた「疑似なまり」
+// 訳に「自分：」と付いた文（自分のセリフ）は、なまりを付けずに標準の米国英語で読む
+const ACCENTS = [
+  { id:'us', label:'🇺🇸 米', lang:'en-US' },
+  { id:'gb', label:'🇬🇧 英', lang:'en-GB' },
+  { id:'au', label:'🇦🇺 豪', lang:'en-AU' },
+  { id:'in', label:'🇮🇳 インド', lang:'en-IN' },
+  { id:'zh', label:'🇨🇳 中国なまり風', lang:'zh-CN' },
+  { id:'vi', label:'🇻🇳 ベトナムなまり風', lang:'vi-VN' },
+  { id:'fr', label:'🇫🇷 フランスなまり風', lang:'fr-FR' },
+];
+let accent = (() => { try { return localStorage.getItem('voice_reader_accent') || 'us'; } catch { return 'us'; } })();
+function findVoice(lang) {
+  const vs = synth ? synth.getVoices() : [];
+  const norm = v => v.lang.toLowerCase().replace('_', '-');
+  const want = lang.toLowerCase(), base = want.split('-')[0];
+  return vs.find(v => norm(v) === want)
+      // 英語の国別（英・豪・インド）は別の国の英語で代用しない。中国語・ベトナム語・フランス語は地域違いでも可
+      || (base !== 'en' || want === 'en-us' ? vs.find(v => norm(v).startsWith(base + '-')) : null)
+      || null;
+}
+function accentReady(a) { return a.id === 'us' || !!findVoice(a.lang); }
+function applyVoice(u, sent) {
+  if (spState.lang !== 'en-US') { u.lang = spState.lang; return; }
+  const isMe = spState.trans && (spState.trans[sent] || '').startsWith('自分：');
+  let a = ACCENTS.find(x => x.id === accent) || ACCENTS[0];
+  if (isMe || !accentReady(a)) a = ACCENTS[0];
+  u.lang = a.lang;
+  const v = findVoice(a.lang); if (v) u.voice = v;
+}
+function accentChips() {
+  return ACCENTS.map(a => {
+    const ok = accentReady(a);
+    return `<button class="schip${accent===a.id?' on':''}" data-acc="${a.id}"${ok?'':' disabled title="この端末にはこの音声がありません"'}>${a.label}</button>`;
+  }).join('');
+}
+if (synth && 'onvoiceschanged' in synth) synth.onvoiceschanged = () => { const r = $('acc-row'); if (r) r.innerHTML = accentChips(); };
+
+function spPlay() {
+  synth.cancel();
+  for (let i = spState.idx; i < spState.sents.length; i++) {
+    const u = new SpeechSynthesisUtterance(spState.sents[i]);
+    applyVoice(u, spState.sents[i]); u.rate = spState.speed;
+    const ci = i;
+    // onstart が発火しない場合の保険として onend でも更新
+    u.onstart = () => { spState.idx = ci; spState.onTick?.(ci); };
+    u.onend = () => {
+      if (ci < spState.sents.length - 1) {
+        spState.idx = ci + 1; spState.onTick?.(ci + 1);
+      } else {
+        spState.playing = false; spState.onDone?.();
+      }
+    };
+    synth.speak(u);
+  }
+  // iOS workaround
+  setTimeout(() => { if (synth.paused) synth.resume(); }, 100);
+}
+function spToggle() {
+  if (spState.playing) { spState.playing = false; synth.cancel(); }
+  else { spState.playing = true; spPlay(); }
+  return spState.playing;
+}
+function spPrev() {
+  const was = spState.playing; spState.playing = false; synth.cancel();
+  spState.idx = Math.max(0, spState.idx - 1);
+  spState.onTick?.(spState.idx);
+  if (was) { spState.playing = true; spPlay(); }
+}
+function spNext() {
+  const was = spState.playing; spState.playing = false; synth.cancel();
+  spState.idx = Math.min(spState.sents.length - 1, spState.idx + 1);
+  spState.onTick?.(spState.idx);
+  if (was) { spState.playing = true; spPlay(); }
+}
+function spWord(w) {
+  if (synth.speaking) synth.cancel();
+  const u = new SpeechSynthesisUtterance(w);
+  u.lang = spState.lang; u.rate = 0.85;
+  synth.speak(u);
+}
+function spStop() {
+  spState.playing = false; synth.cancel();
+  spState = { playing: false, idx: 0, sents: [], speed: spState.speed, lang: spState.lang, trans: null, onTick: null, onDone: null };
+}
+
+// ═══════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════
+let screen = 'library';   // library | edit | player
+let editItem = null;
+let playerItem = null;
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  document.getElementById('app').innerHTML =
+    screen === 'library' ? rLibrary() :
+    screen === 'edit'    ? rEdit()    : rPlayer();
+  bind();
+}
+
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+// ── Library ──────────────────────────────────
+function rLibrary() {
+  const { texts } = load();
+  const list = texts.length ? texts.map(t => {
+    const numBadge = t.num ? `<span style="color:var(--primary);font-size:12px;font-weight:700;margin-right:4px">${esc(t.num)}</span>` : '';
+    const langBadge = t.lang === 'fr-FR' ? '🇫🇷 ' : '';
+    return `
+    <div class="text-item">
+      <div class="text-item-info" data-open="${t.id}">
+        <div class="text-item-title">${numBadge}${langBadge}${esc(t.title)}</div>
+        <div class="text-item-preview">${esc(t.body.slice(0,55))}…</div>
+        <div class="text-item-meta">${splitSents(t.body).length}文 · ${wordCount(t.body)}単語 · 登録語句${t.words.length}件</div>
+      </div>
+      <button class="play-circle" data-play="${t.id}">▶</button>
+    </div>`;
+  }).join('') : `
+    <div class="empty">
+      <div class="empty-icon">🎧</div>
+      <div class="empty-msg">＋ボタンから英文を追加しよう</div>
+    </div>`;
+  return `
+    <div class="header"><div class="header-title">🎧 音声リーダー</div></div>
+    <div class="content">${list}</div>
+    <button class="fab" id="fab">＋</button>`;
+}
+
+// ── Edit ─────────────────────────────────────
+function rEdit() {
+  const it = editItem;
+  const wRows = (it.words || []).map((w, i) => `
+    <div class="word-row">
+      <input class="input" style="flex:1.2" placeholder="英語（例: look forward to）" value="${esc(w.term)}" data-wt="${i}">
+      <input class="input" style="flex:1" placeholder="日本語訳" value="${esc(w.ja)}" data-wj="${i}">
+      <button class="wdel" data-wdel="${i}">✕</button>
+    </div>`).join('');
+  return `
+    <div class="header">
+      <button class="hbtn" id="back">←</button>
+      <div class="header-title">${it.id ? '編集' : '新しい文章'}</div>
+      ${it.id ? '<button class="hbtn danger" id="del-item">🗑</button>' : ''}
+    </div>
+    <div class="content">
+      <div class="field">
+        <label class="label">タイトル</label>
+        <input class="input" id="et" placeholder="例：自己紹介" value="${esc(it.title)}">
+      </div>
+      <div class="field">
+        <label class="label">英文（ピリオド・！・？で文ごとに区切られます）</label>
+        <textarea class="input" id="eb" rows="9" placeholder="例：Thank you for welcoming me. I am happy to visit Vietnam.">${esc(it.body)}</textarea>
+      </div>
+      <hr class="divider">
+      <div class="section-ttl">語句・イディオム（タップで発音＋日本語訳）</div>
+      <div id="wlist">${wRows}</div>
+      <button class="btn btn-ghost btn-sm" id="add-word" style="margin-top:8px">＋ 語句を追加</button>
+      <div style="height:20px"></div>
+      <button class="btn btn-primary" id="save">保存する</button>
+    </div>`;
+}
+
+// ── Player ───────────────────────────────────
+function rPlayer() {
+  const it = playerItem;
+  const sents = splitSents(it.body);
+  const total = sents.length;
+  const tr = it.trans || null;
+  const sentHtml = sents.map((s, i) =>
+    `<div class="sent${i===0?' active':''}" id="s${i}">${annotate(s, it.words)}${
+      tr && tr[s] ? `<div class="sent-ja">${esc(tr[s])}</div>` : ''}</div>`
+  ).join('');
+  const speeds = [0.75, 0.9, 1.0, 1.1, 1.25, 1.5];
+  const numBadge = it.num ? `${esc(it.num)} · ` : '';
+  return `
+    <div class="header">
+      <button class="hbtn" id="back">←</button>
+      <div class="header-title" style="font-size:15px">${numBadge}${esc(it.title)}</div>
+      ${tr ? `<button class="hbtn txt${showTrans?'':' off'}" id="tr-toggle">訳</button>` : ''}
+      <button class="hbtn" id="edit-here">✏️</button>
+    </div>
+    <div class="content">
+      <div class="sentences-wrap${tr && !showTrans ? ' hide-ja' : ''}" id="sw">${sentHtml}</div>
+      <div class="controls">
+        <div class="prog-row">
+          <span class="prog-info" id="pi">1 / ${total}</span>
+          <input type="range" class="prog-slider" id="pslider"
+            min="0" max="${total - 1}" value="0" step="1">
+        </div>
+        <div class="ctrl-row">
+          <button class="cbtn" id="first" title="先頭へ">↩</button>
+          <button class="cbtn" id="prev">⏮</button>
+          <button class="cbtn main" id="play">▶</button>
+          <button class="cbtn" id="next">⏭</button>
+        </div>
+        <div class="speed-row">
+          ${speeds.map(s=>`<button class="schip${spState.speed===s?' on':''}" data-sp="${s}">${s}x</button>`).join('')}
+        </div>
+        ${(it.lang || 'en-US') === 'en-US' ? `
+        <div class="acc-ttl">相手のなまり${it.trans ? '（自分のセリフは標準のまま）' : ''}</div>
+        <div class="acc-row" id="acc-row">${accentChips()}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+// ── Annotate words in sentence ────────────────
+function annotate(sentence, words) {
+  if (!words?.length) return esc(sentence);
+  const sorted = [...words].filter(w=>w.term.trim()).sort((a,b)=>b.term.length-a.term.length);
+  const marks = [];
+  sorted.forEach(w => {
+    const re = new RegExp(w.term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    let m;
+    while ((m = re.exec(sentence)) !== null) {
+      if (!marks.some(e => m.index < e.end && m.index + m[0].length > e.start)) {
+        marks.push({ start: m.index, end: m.index + m[0].length, term: w.term, ja: w.ja, matched: m[0] });
+      }
+    }
+  });
+  marks.sort((a,b) => a.start - b.start);
+  let out = '', pos = 0;
+  marks.forEach(m => {
+    out += esc(sentence.slice(pos, m.start));
+    out += `<span class="wa" data-term="${esc(m.term)}" data-ja="${esc(m.ja)}">${esc(m.matched)}</span>`;
+    pos = m.end;
+  });
+  return out + esc(sentence.slice(pos));
+}
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+function bind() {
+  // ── Library ──
+  if ($('fab')) $('fab').onclick = () => { editItem = {title:'',body:'',words:[]}; screen='edit'; render(); };
+
+  document.querySelectorAll('[data-open]').forEach(el =>
+    el.onclick = () => {
+      const t = load().texts.find(x=>x.id===el.dataset.open);
+      editItem = JSON.parse(JSON.stringify(t));
+      screen = 'edit'; render();
+    }
+  );
+  document.querySelectorAll('[data-play]').forEach(btn =>
+    btn.onclick = () => {
+      const t = load().texts.find(x=>x.id===btn.dataset.play);
+      spStop();
+      playerItem = t;
+      spState.sents = splitSents(t.body);
+      spState.idx = 0;
+      spState.lang = t.lang || 'en-US';
+      spState.trans = t.trans || null;
+      screen = 'player'; render();
+      setupTick();
+    }
+  );
+
+  // ── Edit ──
+  if (screen==='edit') {
+    if ($('back')) $('back').onclick = () => { screen='library'; render(); };
+
+    if ($('del-item')) $('del-item').onclick = () => {
+      if (!confirm('この文章を削除しますか？')) return;
+      const d = load(); d.texts = d.texts.filter(t=>t.id!==editItem.id); save(d);
+      screen='library'; render();
+    };
+
+    if ($('add-word')) $('add-word').onclick = () => {
+      collectEdit(); editItem.words.push({term:'',ja:''}); render();
+      setTimeout(()=>{ const wl=$('wlist'); wl?.lastElementChild?.scrollIntoView({behavior:'smooth'}); },50);
+    };
+
+    document.querySelectorAll('[data-wdel]').forEach(b =>
+      b.onclick = () => { collectEdit(); editItem.words.splice(+b.dataset.wdel,1); render(); }
+    );
+
+    if ($('save')) $('save').onclick = () => {
+      collectEdit();
+      if (!editItem.title.trim()) { alert('タイトルを入力してください'); return; }
+      if (!editItem.body.trim())  { alert('英文を入力してください'); return; }
+      editItem.words = editItem.words.filter(w=>w.term.trim());
+      const d = load();
+      if (!editItem.id) { editItem.id = uid(); d.texts.push(editItem); }
+      else { const i=d.texts.findIndex(t=>t.id===editItem.id); if(i>=0) d.texts[i]=editItem; }
+      save(d); screen='library'; render();
+    };
+  }
+
+  // ── Player ──
+  if (screen==='player') {
+    if ($('back')) $('back').onclick = () => { spStop(); screen='library'; render(); };
+
+    if ($('edit-here')) $('edit-here').onclick = () => {
+      spStop();
+      const t = load().texts.find(x=>x.id===playerItem.id);
+      editItem = JSON.parse(JSON.stringify(t));
+      screen='edit'; render();
+    };
+
+    if ($('acc-row')) $('acc-row').onclick = e => {
+      const b = e.target.closest('[data-acc]');
+      if (!b || b.disabled) return;
+      accent = b.dataset.acc;
+      try { localStorage.setItem('voice_reader_accent', accent); } catch {}
+      $('acc-row').innerHTML = accentChips();
+      if (spState.playing) { synth.cancel(); spPlay(); }
+    };
+
+    if ($('tr-toggle')) $('tr-toggle').onclick = () => {
+      showTrans = !showTrans;
+      $('sw').classList.toggle('hide-ja', !showTrans);
+      $('tr-toggle').classList.toggle('off', !showTrans);
+    };
+
+    if ($('play')) $('play').onclick = () => {
+      const on = spToggle();
+      $('play').textContent = on ? '⏸' : '▶';
+    };
+    if ($('first')) $('first').onclick = () => {
+      const was = spState.playing; synth.cancel(); spState.playing = false;
+      spState.idx = 0; spState.onTick?.(0);
+      if (was) { spState.playing = true; spPlay(); }
+      $('play').textContent = spState.playing ? '⏸' : '▶';
+    };
+    if ($('prev')) $('prev').onclick = () => { spPrev(); $('play').textContent = spState.playing ? '⏸' : '▶'; };
+    if ($('next')) $('next').onclick = () => { spNext(); $('play').textContent = spState.playing ? '⏸' : '▶'; };
+
+    if ($('pslider')) $('pslider').oninput = () => {
+      const idx = parseInt($('pslider').value);
+      const was = spState.playing;
+      spState.playing = false; synth.cancel();
+      spState.idx = idx;
+      spState.onTick?.(idx);
+      if (was) { spState.playing = true; spPlay(); }
+      $('play').textContent = spState.playing ? '⏸' : '▶';
+    };
+
+    document.querySelectorAll('[data-sp]').forEach(b =>
+      b.onclick = () => {
+        spState.speed = parseFloat(b.dataset.sp);
+        document.querySelectorAll('[data-sp]').forEach(x =>
+          x.classList.toggle('on', parseFloat(x.dataset.sp) === spState.speed)
+        );
+        if (spState.playing) { synth.cancel(); spPlay(); }
+      }
+    );
+
+    document.querySelectorAll('.wa').forEach(el =>
+      el.onclick = e => {
+        e.stopPropagation();
+        showPopup(el.dataset.term, el.dataset.ja);
+      }
+    );
+
+    // 文タップで再生位置を移動（語句タップは stopPropagation で除外済み）
+    document.querySelectorAll('.sent').forEach((el, i) =>
+      el.onclick = () => {
+        const was = spState.playing;
+        synth.cancel(); spState.playing = false;
+        spState.idx = i; spState.onTick?.(i);
+        if (was) { spState.playing = true; spPlay(); }
+        $('play').textContent = spState.playing ? '⏸' : '▶';
+      }
+    );
+  }
+}
+
+function collectEdit() {
+  const t=$('et'), b=$('eb'); if(t) editItem.title=t.value; if(b) editItem.body=b.value;
+  editItem.words=[];
+  document.querySelectorAll('[data-wt]').forEach((el,i)=>{
+    const jel=document.querySelector(`[data-wj="${i}"]`);
+    editItem.words.push({term:el.value, ja:jel?.value||''});
+  });
+}
+
+function setupTick() {
+  spState.onTick = (idx) => {
+    const total = spState.sents.length;
+    document.querySelectorAll('.sent').forEach((el,i)=>{
+      el.classList.toggle('active', i===idx);
+      el.classList.toggle('done', i<idx);
+    });
+    document.getElementById(`s${idx}`)?.scrollIntoView({behavior:'smooth',block:'center'});
+    const pi = $('pi'), ps = $('pslider');
+    if (pi) pi.textContent = `${idx+1} / ${total}`;
+    if (ps) ps.value = idx;
+  };
+  spState.onDone = () => {
+    const pb = $('play'); if (pb) pb.textContent = '▶';
+    spState.playing = false;
+  };
+}
+
+function showPopup(term, ja) {
+  spWord(term);
+  const ov = document.createElement('div');
+  ov.className='overlay';
+  ov.innerHTML=`
+    <div class="popup">
+      <div class="popup-term">${esc(term)}</div>
+      <div class="popup-ja">${esc(ja)}</div>
+      <button class="popup-speak" id="ps">🔊 もう一度発音</button>
+      <button class="popup-close" id="pc">閉じる</button>
+    </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('ps').onclick = () => spWord(term);
+  const close = () => ov.remove();
+  document.getElementById('pc').onclick = close;
+  ov.onclick = e => { if(e.target===ov) close(); };
+}
+
+// ── Init ──
+initPresets();
+render();
+
+// バックグラウンドから復帰したとき、音声と表示を再同期する
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && spState.playing) {
+    synth.cancel();
+    setTimeout(() => spPlay(), 150);
+  }
+});
+</script>
+</body>
+</html>
